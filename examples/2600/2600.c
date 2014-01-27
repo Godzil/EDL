@@ -30,14 +30,23 @@ uint8_t MAIN_PinGetDB();
 void MAIN_PinSetDB(uint8_t);
 void MAIN_PinSetO0(uint8_t);
 uint8_t MAIN_PinGetRW();
+uint8_t MAIN_PinGetO2();
 void MAIN_PinSet_RES(uint8_t);
+
+void TIA_PinSetOSC(uint8_t);
+void TIA_PinSetO2(uint8_t);
+uint8_t TIA_PinGetO0();
+
+void RIOT_PinSetO2(uint8_t);
+
+extern uint8_t RIOT_RAM[128];
 
 
 uint8_t MAIN_PinGetSYNC();	// just for debugging
 
 // Step 1. Memory
 
-unsigned char Ram[0x80];
+//unsigned char Ram[0x80];		Implemented inside m6532 RIOT
 unsigned char Rom[0x1000];
 
 int LoadRom(unsigned char* rom,unsigned int size,const char* fname)
@@ -64,12 +73,12 @@ int InitialiseMemory()
 	return 0;
 }
 
-int doDebug=0;
+int doDebug=1;
 
 // MMAP - apparantly
 // ROM - A12 = 1
-// RAM - A12 = 0 & A7 = 1 & A9 = 0
 // TIA - A12 = 0 & A7 = 0
+// RAM - A12 = 0 & A7 = 1 & A9 = 0		A9 = RS signal to RIOT
 // RIOT - A12 = 0 & A7 = 1 & A9 = 1
 
 //	12 11 10 9 8 7 6 5 4 3 2 1 0
@@ -77,50 +86,34 @@ int doDebug=0;
 	
 //	0x1280
 
-uint8_t GetByte(uint16_t addr)
+uint8_t GetByteDebugger(uint16_t addr)
 {
 	if (addr&0x1000)
 	{
-		printf("ROM ACCESS : %04X\n",addr);
 		return Rom[addr&0xFFF];
 	}
 	if ((addr&0x1080)==0x00)
 	{
-		printf("TIA ACCESS : %04X\n",addr);
 		return 0;
 	}
 	if ((addr&0x1280)==0x80)
 	{
-		printf("RAM ACCESS : %04X\n",addr);
-		return Ram[addr-0x80];
+		return RIOT_RAM[addr-0x80];
 	}
 	if ((addr&0x1280)==0x280)
 	{
-		printf("RIOT ACCESS : %04X\n",addr);
 		return 0;
 	}
 	return 0;
 }
 
+uint8_t GetByte(uint16_t addr)
+{
+	return Rom[addr&0xFFF];
+}
+
 void SetByte(uint16_t addr,uint8_t byte)
 {
-	if (addr&0x1000)
-	{
-		printf("ROM WRITE??? : %04X,%02X\n",addr,byte);
-	}
-	if ((addr&0x1080)==0x00)
-	{
-		printf("TIA WRITE : %04X,%02X\n",addr,byte);
-	}
-	if ((addr&0x1280)==0x80)
-	{
-		printf("RAM WRITE : %04X,%02X\n",addr,byte);
-		Ram[addr-0x80]=byte;
-	}
-	if ((addr&0x1280)==0x280)
-	{
-		printf("RIOT WRITE : %04X,%02X\n",addr,byte);
-	}
 }
 
 
@@ -166,7 +159,7 @@ const char* decodeDisasm(uint8_t *table[256],unsigned int address,int *count,int
 	static char temporaryBuffer[2048];
 	char sprintBuffer[256];
 
-	uint8_t byte = GetByte(address);
+	uint8_t byte = GetByteDebugger(address);
 	if (byte>realLength)
 	{
 		sprintf(temporaryBuffer,"UNKNOWN OPCODE");
@@ -211,7 +204,7 @@ const char* decodeDisasm(uint8_t *table[256],unsigned int address,int *count,int
 					negOffs=-1;
 				}
 				int offset=(*sPtr-'0')*negOffs;
-				sprintf(sprintBuffer,"%02X",GetByte(address+offset));
+				sprintf(sprintBuffer,"%02X",GetByteDebugger(address+offset));
 				while (*tPtr)
 				{
 					*dPtr++=*tPtr++;
@@ -238,7 +231,7 @@ int Disassemble(unsigned int address,int registers)
 		printf("UNKNOWN AT : %04X\n",address);
 		for (a=0;a<numBytes+1;a++)
 		{
-			printf("%02X ",GetByte(address+a));
+			printf("%02X ",GetByteDebugger(address+a));
 		}
 		printf("\n");
 		exit(-1);
@@ -252,7 +245,7 @@ int Disassemble(unsigned int address,int registers)
 
 	for (a=0;a<numBytes+1;a++)
 	{
-		printf("%02X ",GetByte(address+a));
+		printf("%02X ",GetByteDebugger(address+a));
 	}
 	for (a=0;a<8-(numBytes+1);a++)
 	{
@@ -418,7 +411,95 @@ void UpdateHardware()
 {
 }
 		
-int stopTheClock=0;
+int stopTheClock=1;
+
+void CheckCPU_Debug()
+{
+	uint16_t addr;
+
+	static uint16_t lastPC;
+	static uint8_t lastO0=0;
+	uint8_t curO0=TIA_PinGetO0();
+
+	MAIN_PinSetO0(curO0);
+	addr=MAIN_PinGetAB(); 
+	RIOT_PinSet_RS((addr&0x200)>>9);
+	RIOT_PinSet_CS2((addr&0x1000)>>12);
+	RIOT_PinSetCS1((addr&0x80)>>7);
+	TIA_PinSet_CS0((addr&0x1000)>>12);
+	TIA_PinSetCS1(1);
+	TIA_PinSet_CS2(0);
+	TIA_PinSet_CS3((addr&0x80)>>7);
+	TIA_PinSetRW(MAIN_PinGetRW());
+	TIA_PinSetAB(addr&0x3F);
+	RIOT_PinSetRW(MAIN_PinGetRW());
+	RIOT_PinSetAD(addr&0x7F);
+	TIA_PinSetO2(MAIN_PinGetO2());
+	RIOT_PinSetO2(MAIN_PinGetO2());
+
+	if (MAIN_PinGetRW())
+	{
+		// Chip Select
+		switch(addr&0x1280)
+		{
+			case 0x0000:
+			case 0x0200:
+				//printf("TIA ACCESS @%04X\n",addr);
+				MAIN_PinSetDB(0);
+				break;
+			case 0x0080:
+			case 0x0280:
+				//printf("RIOT ACCESS @%04X,%02X\n",addr,RIOT_PinGetDB());
+				MAIN_PinSetDB(RIOT_PinGetDB());
+				break;
+			case 0x1000:
+			case 0x1080:
+			case 0x1200:
+			case 0x1280:
+				//printf("ROM ACCESS @%04X\n",addr);
+				MAIN_PinSetDB(GetByte(addr));
+				break;
+		}
+	}
+	if (!MAIN_PinGetRW())
+	{
+		// Chip Select
+		switch(addr&0x1280)
+		{
+			case 0x0000:
+			case 0x0200:
+				//printf("TIA WRITE @%04X,0\n",addr);
+				break;
+			case 0x0080:
+			case 0x0280:
+				//printf("RIOT WRITE @%04X,%02X\n",addr,MAIN_PinGetDB());
+				RIOT_PinSetDB(MAIN_PinGetDB());
+				break;
+			case 0x1000:
+			case 0x1080:
+			case 0x1200:
+			case 0x1280:
+				printf("ROM WRITE @%04X\n",addr);
+				break;
+		}
+	}
+
+	if (lastO0==0 && curO0==1)
+	{
+		if (MAIN_PinGetSYNC())
+		{
+			lastPC=addr;
+
+			if (doDebug)
+			{
+				Disassemble(addr,1);
+				//getch();
+			}
+		}
+
+	}		
+	lastO0=curO0;
+}
 
 // NTSC
 // Main Clock = 3.58Mhz
@@ -470,53 +551,32 @@ int main(int argc,char**argv)
 	
 	while (!glfwGetKey(windows[MAIN_WINDOW],GLFW_KEY_ESCAPE))
 	{
-		static uint16_t lastPC;
 		static uint8_t lastPb0=0xff;
-		uint16_t addr; 
 		
 		if ((!stopTheClock) || g_traceStep || g_instructionStep)
 		{
-			MAIN_PinSetO0(1);
-			addr = MAIN_PinGetAB();
+			TIA_PinSetOSC(1);
 
-			if (MAIN_PinGetSYNC())
-			{
-				lastPC=addr;
+			CheckCPU_Debug();
 
-				if (doDebug)
-				{
-					Disassemble(addr,1);
-					//getch();
-				}
-			}
+			TIA_PinSetOSC(0);
+			
+			CheckCPU_Debug();
 
-			if (MAIN_PinGetRW())
-			{
-				uint8_t  data = GetByte(addr);
-				if (doDebug)
-					printf("Getting : %02X @ %04X\n", data,addr);
-				MAIN_PinSetDB(data);
-			}
-			if (!MAIN_PinGetRW())
-			{
-				if (doDebug)
-					printf("Storing : %02X @ %04X\n", MAIN_PinGetDB(),addr);
-				SetByte(addr,MAIN_PinGetDB());
-			}
+			pixelClock++;
 
 			UpdateHardware();
 
-			MAIN_PinSetO0(0);
 
-			pixelClock++;
 		}
 
-		if (pixelClock>=22152 || stopTheClock)
+
+		if (pixelClock>=(228*262) || stopTheClock)
 		{
 			static int normalSpeed=1;
 
-			if (pixelClock>=22152)
-				pixelClock-=22152;
+			if (pixelClock>=(228*262))
+				pixelClock-=228*262;
 
             		glfwMakeContextCurrent(windows[MAIN_WINDOW]);
 			ShowScreen(MAIN_WINDOW,WIDTH,HEIGHT);

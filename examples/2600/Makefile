@@ -9,6 +9,20 @@ clean:
 	rmdir out
 	$(RM) 2600.exe
 
+out/m6532.lls: ../../chips/Accurate/m6532.edl
+	mkdir -p out
+	$(EDL) -O2 -s RIOT_ ../../chips/Accurate/m6532.edl >out/m6532.lls
+
+out/m6532.lls.s: out/m6532.lls
+	llc out/m6532.lls
+
+out/tia_ntsc.lls: ../../chips/Accurate/tia_ntsc.edl
+	mkdir -p out
+	$(EDL) -O2 -s TIA_ ../../chips/Accurate/tia_ntsc.edl >out/tia_ntsc.lls
+
+out/tia_ntsc.lls.s: out/tia_ntsc.lls
+	llc out/tia_ntsc.lls
+
 out/m6507_main.lls: ../../chips/Accurate/m6507.edl
 	mkdir -p out
 	$(EDL) -O2 -s MAIN_ ../../chips/Accurate/m6507.edl >out/m6507_main.lls
@@ -16,5 +30,5 @@ out/m6507_main.lls: ../../chips/Accurate/m6507.edl
 out/m6507_main.lls.s: out/m6507_main.lls
 	llc out/m6507_main.lls
 
-2600: 2600.c out/m6507_main.lls.s 
-	gcc -O3 -g 2600.c out/m6507_main.lls.s $(ALLIBS) $(GLLIBS) -o 2600.exe
+2600: 2600.c out/m6507_main.lls.s out/tia_ntsc.lls.s out/m6532.lls.s
+	gcc -O3 -g 2600.c out/m6507_main.lls.s out/tia_ntsc.lls.s out/m6532.lls.s $(ALLIBS) $(GLLIBS) -o 2600.exe

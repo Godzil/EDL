@@ -1,0 +1,75 @@
+#
+#	NTSC TIA 
+#
+
+PIN OUT			SYNC[1];		# Composite Video Sync
+PIN OUT 		_RDY[1];		# To RDY on CPU
+PIN OUT 		O0[1];			# To Clock Input on CPU
+PIN OUT 		LUM1[1];		# Luminance Output 1		- Analogue?
+PIN OUT 		BLK[1];			# Vertical Blanking Output
+PIN OUT 		LUM2[1];		# Luminance Output 2		- Analogue?
+PIN OUT 		LUM0[1];		# Luminance Output 0		- Analogue?
+PIN OUT 		COL[1];			# Colour Output			- Analogue
+PIN IN			DEL[1];			# Colour Delay Input
+PIN IN			OSC[1];			# Clock Input
+PIN OUT 		AUD0[1];		# Audio Output			- Analogue
+PIN OUT			AUD1[1];		# Audio Output			- Analogue
+PIN IN			DB05[6];		# Processor Data Bus Bits 0-5
+PIN IN			DI[4];			# "Dumped" inputs
+PIN IN			LI[2];			# Latched inputs
+PIN BIDIRECTIONAL	DB67[2];		# Processor Data Bus Bits 6-7
+PIN IN			AB[6];			# Address bus
+PIN IN			O2[1];			# O2 Clock from CPU
+PIN IN			RW[1];			# R/~W
+PIN IN			_CS0[1];		# Chip Selects 0,2,3 low 1 high for chip selected
+PIN IN			CS1[1];
+PIN IN			_CS2[1];
+PIN IN			_CS3[1];
+
+
+###
+
+DECLARE		o0_clk_counter[2];
+DECLARE		O0_actual[1];
+
+FUNCTION INTERNAL UpdateO0
+{
+	o0_clk_counter<-o0_clk_counter+1;
+
+	IF o0_clk_counter==3
+	{
+		o0_clk_counter<-0;
+		O0_actual<-~O0_actual;
+		O0<-O0_actual;
+	}
+}
+
+HANDLER	OSC	TRANSITION(0,1)
+{
+
+	CALL UpdateO0();
+}
+
+HANDLER OSC	TRANSITION(1,0)
+{
+
+	CALL UpdateO0();
+}
+
+HANDLER O2	TRANSITION(0,1)
+{
+	IF ~RW
+	{
+		IF (~_CS0) & (~_CS2) & (~_CS3) & CS1
+		{
+			DEBUG_TRACE "TIA Possible Register Write",BASE 16,AB;
+		}
+	}
+	IF RW
+	{
+		IF (~_CS0) & (~_CS2) & (~_CS3) & CS1
+		{
+			DEBUG_TRACE "TIA Possible Register Read",BASE 16,AB;
+		}
+	}
+}

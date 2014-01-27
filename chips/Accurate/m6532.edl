@@ -1,0 +1,64 @@
+#
+# MOS 6532 (RIOT)
+#
+# Bare Bones at present - ignores Peripherals / Timer / Internal Registers
+#
+#
+#
+
+PIN IN			AD[7];		# Address bits
+PIN BIDIRECTIONAL	PA[8];		# Peripheral A
+PIN BIDIRECTIONAL	PB[8];		# Peripheral B
+PIN OUT			_IRQ[1];	# IRQ signal to processor
+PIN BIDIRECTIONAL	DB[8];		# Data Bus
+PIN IN			_RES[1];	# Reset
+PIN IN			RW[1];		# Read(1) / Write(0)
+PIN IN			_RS[1];		# Ram Select
+PIN IN			_CS2[1];	# Chip Select
+PIN IN			CS1[1];		# Chip Select
+PIN IN			O2[1];		# Input Clock
+
+
+DECLARE		RAM[[7]][8];
+
+HANDLER	O2	TRANSITION(0,1)
+{
+	# First up, implement RAM addressing
+
+	IF RW
+	{
+		IF (~_CS2) & CS1
+		{
+			IF ~_RS
+			{
+				DB<-RAM[[AD]];
+				DEBUG_TRACE "RAM READ : ",BASE 16, AD,DB;
+			}
+			IF _RS
+			{
+				DEBUG_TRACE "RIOT - Possible Register Read : ",BASE 16,AD;
+			}
+		}
+	}
+	IF ~RW
+	{
+		IF (~_CS2) & CS1
+		{
+			IF ~_RS
+			{
+				RAM[[AD]]<-DB;
+				DEBUG_TRACE "RAM WRITE : ",BASE 16, AD,DB;
+			}
+			IF _RS
+			{
+				DEBUG_TRACE "RIOT - Possible Register Write : ",BASE 16,AD;
+			}
+		}
+	}
+}
+
+HANDLER O2	TRANSITION(1,0)
+{
+}
+
+
