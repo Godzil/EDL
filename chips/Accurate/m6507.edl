@@ -1,0 +1,49 @@
+# MOS 6507 (NMOS) - Accurate Version - Includes the 6502 core - since the 6507 is the same core with
+#reduced footprint
+#
+# This should be used like the real CPU, ie interact with the 's
+#
+#  RDY is ignored
+#
+
+INSTANCE "../../chips/accurate/m6502.edl" AS m6502;
+
+PIN IN			_RES[1];			# RESet
+PIN IN			RDY[1];			# ReaDY signal for external devices
+PIN OUT			AB[13];			# Address Bus
+PIN BIDIRECTIONAL	DB[8];			# Data Bus
+PIN OUT			RW[1];			# Read/Write indicator - 0 is write
+PIN IN			O0[1];			# O0 Clock control - currently used as clock signal
+PIN OUT			O2[1];			# O2 Phase Clock Output
+
+## Not on real 6507 - just exposed for debug purposes
+PIN OUT			SYNC[1];
+
+
+HANDLER _RES	ALWAYS
+{
+	m6502 PIN_SO<-0;
+	m6502 PIN__IRQ<-1;
+	m6502 PIN__NMI<-1;
+	m6502 PIN__RES<-_RES;
+}
+
+HANDLER RDY		ALWAYS
+{
+	m6502 PIN_RDY<-RDY;
+}
+
+HANDLER DB		ALWAYS
+{
+	m6502 PIN_DB<-DB;
+}
+
+HANDLER O0		ALWAYS
+{
+	m6502 PIN_O0<-O0;
+	AB<-m6502 PIN_AB;
+	DB<-m6502 PIN_DB;
+	O2<-m6502 PIN_O2;
+	RW<-m6502 PIN_RW;
+	SYNC<-m6502 PIN_SYNC;
+}
