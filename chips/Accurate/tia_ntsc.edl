@@ -5,11 +5,11 @@
 PIN OUT			SYNC[1];		# Composite Video Sync
 PIN OUT 		_RDY[1];		# To RDY on CPU
 PIN OUT 		O0[1];			# To Clock Input on CPU
-PIN OUT 		LUM1[1];		# Luminance Output 1		- Analogue?
+PIN OUT 		LUM1[1];		# Luminance Output 1
 PIN OUT 		BLK[1];			# Vertical Blanking Output
-PIN OUT 		LUM2[1];		# Luminance Output 2		- Analogue?
-PIN OUT 		LUM0[1];		# Luminance Output 0		- Analogue?
-PIN OUT 		COL[1];			# Colour Output			- Analogue
+PIN OUT 		LUM2[1];		# Luminance Output 2
+PIN OUT 		LUM0[1];		# Luminance Output 0
+PIN OUT 		COL[4];			# Colour Output			- Analogue? For now its the colour index
 PIN IN			DEL[1];			# Colour Delay Input
 PIN IN			OSC[1];			# Clock Input
 PIN OUT 		AUD0[1];		# Audio Output			- Analogue
@@ -36,6 +36,17 @@ DECLARE		Div4[2];			# Clock Divider
 
 DECLARE		HCounter[6]	ALIAS hUpper[4]:h1[1]:h0[1]	{%111111};			# Polynomial counter
 DECLARE		HReset[1];							# Used to cause next count to be reset
+
+
+DECLARE		VSYNC[1];
+DECLARE		HSYNC[1];
+
+DECLARE		HBLANK[1];
+DECLARE		VBLANK[1];
+
+DECLARE		LUBK[3];			# Current Bkground Luminance
+DECLARE		COBK[4];			# Current Bkground Colour
+
 FUNCTION INTERNAL UpdateHCounter
 {
 	# Check for illegal condition
@@ -55,11 +66,14 @@ FUNCTION INTERNAL UpdateHCounter
 	IF HReset
 	{
 		HReset<-0;
-		HCounter<-0;		# Start HBlanking
+		HCounter<-0;
+
+		HBLANK<-1;
+
 		_RDY<-1;
 	}
 
-	DEBUG_TRACE HCounter;
+	#DEBUG_TRACE HCounter;
 
 	EXECUTE HClockLogic HCounter;
 }
@@ -73,6 +87,24 @@ FUNCTION INTERNAL UpdateO0
 		o0_clk_counter<-0;
 		O0_actual<-~O0_actual;
 		O0<-O0_actual;
+	}
+
+	SYNC<-VSYNC | HSYNC;
+
+	#TODO - Need MUX
+	IF (HBLANK|VBLANK)
+	{
+		LUM0<-0;
+		LUM1<-0;
+		LUM2<-0;
+		COL<-0;
+	}
+	IF ~(HBLANK|VBLANK)
+	{
+		LUM0<-LUBK[0..0];
+		LUM1<-LUBK[1..1];
+		LUM2<-LUBK[2..2];
+		COL<-COBK;
 	}
 }
 
@@ -109,49 +141,93 @@ HANDLER O2	TRANSITION(0,1)
 	{
 		IF (~_CS0) & (~_CS2) & (~_CS3) & CS1
 		{
-			DEBUG_TRACE "TIA Possible Register Read",BASE 16,AB;
+			#DEBUG_TRACE "TIA Possible Register Read",BASE 16,AB;
 		}
 	}
 }
 
 ####### Register Handlers
 
-INSTRUCTION	WriteRegister	"TODO"		a[4]:%0:b[1]
+MAPPING TODO[2]
 {
-	DECLARE debug[6]	ALIAS ia[4]:z[1]:ib[1];
+	%10	""	%10;
+	%11	""	%11;
+}
+
+INSTRUCTION	WriteRegister	"TODO"		a[3]:TODO:b[1]
+{
+	DECLARE debug[6]	ALIAS ia[3]:td[2]:ib[1];
 
 	ia<-a;
+	td<-TODO;
 	ib<-b;
 
 	DEBUG_TRACE "TIA : Unknown Register Write",debug;
 }
 
-INSTRUCTION	WriteRegister	"VBLANK"	%000000
+INSTRUCTION	WriteRegister	"VSYNC"		%000000
 {
-	BLK<-DB[1..1];
-	DEBUG_TRACE "TIA : VBLANK - xx----V-";
+	VSYNC<-(DB05[1..1]);
+	#DEBUG_TRACE "TIA : VSYNC - ------S-";
 }
 
-INSTRUCTION	WriteRegister	"VSYNC"		%000001
+INSTRUCTION	WriteRegister	"VBLANK"	%000001
 {
+	BLK<-(DB05[1..1]);
+	VBLANK<-(DB05[1..1]);
+
+	#DEBUG_TRACE "TIA : VBLANK - xx----V-";
 }
 
 INSTRUCTION	WriteRegister	"WSYNC"		%000010
 {
 	_RDY<-0;
-	DEBUG_TRACE "TIA : WSYNC - ASSERT RDY";
+	#DEBUG_TRACE "TIA : WSYNC - ASSERT RDY (strobe)";
 }
 
 INSTRUCTION	WriteRegister	"RSYNC"		%000011
 {
 	HReset<-1;
-	DEBUG_TRACE "TIA : RSYNC - Reset Timing";
+	#DEBUG_TRACE "TIA : RSYNC - Reset Timing (strobe)";
+}
+
+INSTRUCTION	WriteRegister	"COLUBK"	%001001
+{
+	DECLARE	colGlue[4]	ALIAS	d67[2]:d54[2];
+	DECLARE	lumGlue[3]	ALIAS	d3[1]:d2[1]:d1[1];
+
+	d67<-DB67;
+	d54<-DB05[4..5];
+	d3<-DB05[3..3];
+	d2<-DB05[2..2];
+	d1<-DB05[1..1];
+
+	COBK<-colGlue;
+	LUBK<-lumGlue;
+
+	#DEBUG_TRACE "TIA : COLUBK - CCCClll-",COBK,LUBK,DB67,DB05;
 }
 
 ####### HClock Handlers
 
+INSTRUCTION	HClockLogic	"HSYNC ON"	%111100
+{
+	HSYNC<-1;
+}
+
+INSTRUCTION	HClockLogic	"HSYNC OFF"	%110111
+{
+	HSYNC<-0;
+}
+
+INSTRUCTION	HClockLogic	"RESET HBLK"	%011100
+{
+	HBLANK<-0;
+}
+
 INSTRUCTION	HClockLogic	"RESET"		%010100
 {
 	HReset<-1;
-	DEBUG_TRACE "RESET next count clock";
 }
+
+

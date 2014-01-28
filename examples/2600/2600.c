@@ -79,7 +79,7 @@ int InitialiseMemory()
 	return 0;
 }
 
-int doDebug=1;
+int doDebug=0;
 
 // MMAP - apparantly
 // ROM - A12 = 1
@@ -476,6 +476,8 @@ void CheckCPU_Debug()
 			case 0x0000:
 			case 0x0200:
 				//printf("TIA WRITE @%04X,0\n",addr);
+				TIA_PinSetDB67(MAIN_PinGetDB()>>6);
+				TIA_PinSetDB05(MAIN_PinGetDB()&0x3F);
 				break;
 			case 0x0080:
 			case 0x0280:
@@ -502,11 +504,75 @@ void CheckCPU_Debug()
 				Disassemble(addr,1);
 				//getch();
 			}
+			g_instructionStep=0;
 		}
 
 	}		
 	lastO0=curO0;
 }
+
+uint32_t quickPalette[8*16]={
+			 0x00000000,0x00222222,0x00444444,0x00666666,0x00888888,0x00AAAAAA,0x00CCCCCC,0x00EEEEEE 
+			,0x000A1800,0x002C3A00,0x004E5C00,0x00707E00,0x0092A000,0x00B4C213,0x00D6E435,0x00F8FF57 
+			,0x00300000,0x00522200,0x00744400,0x00966600,0x00B8880A,0x00DAAA2C,0x00FCCC4E,0x00FFEE70 
+			,0x004B0000,0x006D0A00,0x008F2C00,0x00B14E1C,0x00D3703E,0x00F59260,0x00FFB482,0x00FFD6A4 
+			,0x00550000,0x0077001D,0x00991A3F,0x00BB3C61,0x00DD5E83,0x00FF80A5,0x00FFA2C7,0x00FFC4E9
+			,0x004D0040,0x006F0062,0x00911084,0x00B332A6,0x00D554C8,0x00F776EA,0x00FF98FF,0x00FFBAFF
+			,0x00350078,0x0057009A,0x007912BC,0x009B34DE,0x00BD56FF,0x00DF78FF,0x00FF9AFF,0x00FFBCFF
+			,0x00100096,0x003200B8,0x00541FDA,0x007641FC,0x009863FF,0x00BA85FF,0x00DCA7FF,0x00FEC9FF
+			,0x00000093,0x000A12B5,0x002C34D7,0x004E56F9,0x007078FF,0x00929AFF,0x00B4BCFF,0x00D6DEFF
+			,0x0000086F,0x00002A91,0x000A4CB3,0x002C6ED5,0x004E90F7,0x0070B2FF,0x0092D4FF,0x00B4F6FF
+			,0x00001F34,0x00004156,0x00006378,0x0016859A,0x0038A7BC,0x005AC9DE,0x007CEBFF,0x009EFFFF
+			,0x00002F00,0x0000510F,0x00007331,0x00119553,0x0033B775,0x0055D997,0x0077FBB9,0x0099FFDB
+			,0x00003500,0x00005700,0x00007900,0x001F9B11,0x0041BD33,0x0063DF55,0x0085FF77,0x00A7FF99
+			,0x00002F00,0x00005100,0x001B7300,0x003D9500,0x005FB703,0x0081D925,0x00A3FB47,0x00C5FF69};
+/*
+00 1F 00 1F 41 00 41 63 00 63 85 00 85 A7 00 A7 C9 12 C9 EB 34 EB FF 56 24 08 00 46 2A 00 68 4C 00 8A 6E 00 AC 90 00 CE B2 20 F0 D4 42 FF F6 64 00 00 00 22 22 22 44 44 44 66 66 66 88 88 88 AA AA AA CC CC CC EE EE EE 00 00 00 22 22 22 44 44 44 66 66 66 88 88 88 AA AA AA CC CC CC EE EE EE 30 00 00 52 22 00 74 44 00 96 66 00 B8 88 0A DA AA 2C FC CC 4E FF EE 70 00 2F 00 00 51 00 1B 73 00 3D 95 00 5F B7 03 81 D9 25 A3 FB 47 C5 FF 69 4B 00 00 6D 0A 00 8F 2C 00 B1 4E 1C D3 70 3E F5 92 60 FF B4 82 FF D6 A4 00 35 00 00 57 00 00 79 00 1F 9B 11 41 BD 33 63 DF 55 85 FF 77 A7 FF 99 55 00 00 77 00 1D 99 1A 3F BB 3C 61 DD 5E 83 FF 80 A5 FF A2 C7 FF C4 E9 00 2F 00 00 51 0F 00 73 31 11 95 53 33 B7 75 55 D9 97 77 FB B9 99 FF DB 4D 00 40 6F 00 62 91 10 84 B3 32 A6 D5 54 C8 F7 76 EA FF 98 FF FF BA FF 00 1F 34 00 41 56 00 63 78 16 85 9A 38 A7 BC 5A C9 DE 7C EB FF 9E FF FF 35 00 78 57 00 9A 79 12 BC 9B 34 DE BD 56 FF DF 78 FF FF 9A FF FF BC FF 00 08 6F 00 2A 91 0A 4C B3 2C 6E D5 4E 90 F7 70 B2 FF 92 D4 FF B4 F6 FF 10 00 96 32 00 B8 54 1F DA 76 41 FC 98 63 FF BA 85 FF DC A7 FF FE C9 FF 00 00 93 0A 12 B5 2C 34 D7 4E 56 F9 70 78 FF 92 9A FF B4 BC FF D6 DE FF 00 00 00 22 22 22 44 44 44 66 66 66 88 88 88 AA AA AA CC CC CC EE EE EE 00 00 00 22 22 22 44 44 44 66 66 66 88 88 88 AA AA AA CC CC CC EE EE EE 00 00 00 21 21 FF F0 3C 79 FF 50 FF 7F FF 00 7F FF FF FF FF 3F FF FF FFp
+*/
+// If sync lasts at least 300 clocks, wait for sync end, and thats the start of first line. If sync<300 assume HSYNC -- crude but will work for now
+void DummyNTSCTV()
+{
+	static int curScan=0;		// (we have 228 pixels of screen space for a line, 262 lines for a display
+	static int curPos=0;
+	static int syncCounter=0;
+
+	if (TIA_PinGetSYNC()&1)
+	{
+		++syncCounter;
+	}
+	else
+	{
+		if (syncCounter)
+		{
+			if (syncCounter<300)
+			{
+				curScan++;
+				curPos=0;
+			}
+			if (syncCounter>=300)
+			{
+				curScan=0;
+				curPos=0;
+			}
+		}
+		syncCounter=0;
+
+		if ((curScan<262) && (curPos<228))
+		{
+			uint32_t* outputTexture = (uint32_t*)(videoMemory[MAIN_WINDOW]);
+	
+			uint32_t col = quickPalette[(((TIA_PinGetLUM2()&1)<<2)|((TIA_PinGetLUM1()&1)<<1)|((TIA_PinGetLUM0()&1)<<0))|((TIA_PinGetCOL()&0xF)<<3)];
+
+			//printf("%02X / %02X / %02X / %08X\n",TIA_PinGetLUM2()&1,TIA_PinGetLUM1()&1,TIA_PinGetLUM0()&1,col);
+
+			outputTexture[curPos+curScan*228]=col;
+
+		}
+		curPos++;
+	}
+
+}
+
 
 // NTSC
 // Main Clock = 3.58Mhz
@@ -570,6 +636,8 @@ int main(int argc,char**argv)
 			
 			CheckCPU_Debug();
 
+			DummyNTSCTV();
+
 			pixelClock++;
 
 			UpdateHardware();
@@ -610,6 +678,11 @@ int main(int argc,char**argv)
 			{
 				ClearKey(GLFW_KEY_KP_MULTIPLY);
 				g_traceStep=1;
+			}
+			if (CheckKey(GLFW_KEY_KP_SUBTRACT))
+			{
+				ClearKey(GLFW_KEY_KP_SUBTRACT);
+				g_instructionStep=1;
 			}
 			
 			now=glfwGetTime();
