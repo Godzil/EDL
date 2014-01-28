@@ -11,10 +11,10 @@ clean:
 
 out/m6532.lls: ../../chips/Accurate/m6532.edl
 	mkdir -p out
-	$(EDL) -O2 -s RIOT_ ../../chips/Accurate/m6532.edl >out/m6532.lls
+	$(EDL) -O0 -s RIOT_ ../../chips/Accurate/m6532.edl >out/m6532.lls
 
 out/m6532.lls.s: out/m6532.lls
-	llc out/m6532.lls
+	llc -O2 out/m6532.lls
 
 out/tia_ntsc.lls: ../../chips/Accurate/tia_ntsc.edl
 	mkdir -p out

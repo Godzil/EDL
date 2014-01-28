@@ -65,10 +65,16 @@ int LoadRom(unsigned char* rom,unsigned int size,const char* fname)
 
 int InitialiseMemory()
 {
+#if 0
 	if (LoadRom(Rom,2048,"roms/volymN.bin"))
 		return 1;
 	if (LoadRom(&Rom[2048],2048,"roms/volymN.bin"))		// mirror
 		return 1;
+#else
+	if (LoadRom(Rom,4096,"roms/kernel_01.bin"))
+		return 1;
+
+#endif
 
 	return 0;
 }
@@ -421,6 +427,7 @@ void CheckCPU_Debug()
 	static uint8_t lastO0=0;
 	uint8_t curO0=TIA_PinGetO0();
 
+	MAIN_PinSetRDY(TIA_PinGet_RDY());
 	MAIN_PinSetO0(curO0);
 	addr=MAIN_PinGetAB(); 
 	RIOT_PinSet_RS((addr&0x200)>>9);

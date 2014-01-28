@@ -21,9 +21,13 @@ PIN IN			O2[1];		# Input Clock
 
 DECLARE		RAM[[7]][8];
 
+DECLARE		Counter[17];		# Timer with preScaler e.g. /1 = 0..7 /8 = 3..10 /64 = 6..13  /1024 = 10..17
+
+DECLARE		TimerTypeLatch[2];
+
 HANDLER	O2	TRANSITION(0,1)
 {
-	# First up, implement RAM addressing
+	DECLARE reg[2];
 
 	IF RW
 	{
@@ -36,7 +40,22 @@ HANDLER	O2	TRANSITION(0,1)
 			}
 			IF _RS
 			{
-				DEBUG_TRACE "RIOT - Possible Register Read : ",BASE 16,AD;
+				IF AD[2..2]==0
+				{
+					reg<-AD[2];
+					EXECUTE ReadRegister	reg;
+				}
+				IF AD[2..2]==1
+				{
+					IF AD[0..0]==0
+					{
+						EXECUTE ReadCounter TimerTypeLatch;
+					}
+					IF AD[0..0]==1
+					{
+						DEBUG_TRACE "RIOT - Read Interrupt Flag: ",BASE 16,AD;
+					}
+				} 
 			}
 		}
 	}
@@ -51,7 +70,26 @@ HANDLER	O2	TRANSITION(0,1)
 			}
 			IF _RS
 			{
-				DEBUG_TRACE "RIOT - Possible Register Write : ",BASE 16,AD;
+				IF AD[2..2]==0
+				{
+					reg<-AD[2];
+					EXECUTE WriteRegister	reg;
+				}
+				IF AD[2..2]==1
+				{
+					IF AD[4..4]==0
+					{
+						DEBUG_TRACE "RIOT - Edge Detect Write : ",BASE 16,AD;
+					}
+					IF AD[4..4]==1
+					{
+						TimerTypeLatch<-AD[2];
+
+						Counter<-0;
+						
+						EXECUTE LoadCounter TimerTypeLatch;
+					}
+				}
 			}
 		}
 	}
@@ -59,6 +97,106 @@ HANDLER	O2	TRANSITION(0,1)
 
 HANDLER O2	TRANSITION(1,0)
 {
+	DECLARE tOver[1];
+
+	AFFECT tOver AS CARRY(16) {Counter-1}->Counter;
+
+	IF tOver
+	{
+		TimerTypeLatch<-0;	# Force read of /1 counter after underflow
+		#Set Interrupt
+	}
+}
+
+### Register Read/Write Tables
+
+
+INSTRUCTION ReadRegister	"RegA"	%00
+{
+	DEBUG_TRACE "RIOT - Read Output Reg A";
+}
+
+INSTRUCTION ReadRegister	"DDRA"	%01
+{
+	DEBUG_TRACE "RIOT - Read Output DDRA";
+}
+
+INSTRUCTION ReadRegister	"RegB"	%10
+{
+	DEBUG_TRACE "RIOT - Read Output Reg A";
+}
+
+INSTRUCTION ReadRegister	"DDRB"	%11
+{
+	DEBUG_TRACE "RIOT - Read Output DDRA";
+}
+
+INSTRUCTION WriteRegister	"RegA"	%00
+{
+	DEBUG_TRACE "RIOT - Write Output Reg A";
+}
+
+INSTRUCTION WriteRegister	"DDRA"	%01
+{
+	DEBUG_TRACE "RIOT - Write Output DDRA";
+}
+
+INSTRUCTION WriteRegister	"RegB"	%10
+{
+	DEBUG_TRACE "RIOT - Write Output Reg A";
+}
+
+INSTRUCTION WriteRegister	"DDRB"	%11
+{
+	DEBUG_TRACE "RIOT - Write Output DDRA";
+}
+
+INSTRUCTION LoadCounter	"/1"	%00
+{
+	DB->Counter[0..7];
+	DEBUG_TRACE "RIOT - Timer Write /1";
+}
+
+INSTRUCTION LoadCounter	"/8"	%01
+{
+	DB->Counter[3..10];
+	DEBUG_TRACE "RIOT - Timer Write /8";
+}
+
+INSTRUCTION LoadCounter	"/64"	%10
+{
+	DB->Counter[6..13];
+	DEBUG_TRACE "RIOT - Timer Write /64";
+}
+
+INSTRUCTION LoadCounter	"/1024"	%11
+{
+	DB->Counter[10..17];
+	DEBUG_TRACE "RIOT - Timer Write /1024";
+}
+
+INSTRUCTION ReadCounter	"/1"	%00
+{
+	DB<-Counter[0..7];
+	DEBUG_TRACE "RIOT - Timer Read /1",DB;
+}
+
+INSTRUCTION ReadCounter	"/8"	%01
+{
+	DB<-Counter[3..10];
+	DEBUG_TRACE "RIOT - Timer Read /8",DB;
+}
+
+INSTRUCTION ReadCounter	"/64"	%10
+{
+	DB<-Counter[6..13];
+	DEBUG_TRACE "RIOT - Timer Read /64",DB;
+}
+
+INSTRUCTION ReadCounter	"/1024"	%11
+{
+	DB<-Counter[10..17];
+	DEBUG_TRACE "RIOT - Timer Read /1024",DB;
 }
 
 

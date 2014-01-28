@@ -32,6 +32,38 @@ PIN IN			_CS3[1];
 DECLARE		o0_clk_counter[2];
 DECLARE		O0_actual[1];
 
+DECLARE		Div4[2];			# Clock Divider
+
+DECLARE		HCounter[6]	ALIAS hUpper[4]:h1[1]:h0[1]	{%111111};			# Polynomial counter
+DECLARE		HReset[1];							# Used to cause next count to be reset
+FUNCTION INTERNAL UpdateHCounter
+{
+	# Check for illegal condition
+	IF HCounter==%111111
+	{
+		HReset<-1;
+	}
+	IF HCounter!=%111111
+	{
+		DECLARE nextState[6]	ALIAS newBit[1]:oldBits[5];
+
+		HCounter[1..5]->oldBits;
+		~((HCounter[0..0]) ^ (HCounter[1..1]))->newBit;
+
+		HCounter<-nextState;
+	}
+	IF HReset
+	{
+		HReset<-0;
+		HCounter<-0;		# Start HBlanking
+		_RDY<-1;
+	}
+
+	DEBUG_TRACE HCounter;
+
+	EXECUTE HClockLogic HCounter;
+}
+
 FUNCTION INTERNAL UpdateO0
 {
 	o0_clk_counter<-o0_clk_counter+1;
@@ -44,9 +76,17 @@ FUNCTION INTERNAL UpdateO0
 	}
 }
 
+FUNCTION INTERNAL	tick[1]	UpdateDiv4
+{
+	AFFECT tick AS CARRY(1) { Div4+1 }->Div4;
+}
+
 HANDLER	OSC	TRANSITION(0,1)
 {
-
+	IF CALL UpdateDiv4()
+	{
+		CALL UpdateHCounter();
+	}
 	CALL UpdateO0();
 }
 
@@ -62,7 +102,7 @@ HANDLER O2	TRANSITION(0,1)
 	{
 		IF (~_CS0) & (~_CS2) & (~_CS3) & CS1
 		{
-			DEBUG_TRACE "TIA Possible Register Write",BASE 16,AB;
+			EXECUTE WriteRegister AB;
 		}
 	}
 	IF RW
@@ -72,4 +112,37 @@ HANDLER O2	TRANSITION(0,1)
 			DEBUG_TRACE "TIA Possible Register Read",BASE 16,AB;
 		}
 	}
+}
+
+####### Register Handlers
+
+INSTRUCTION	WriteRegister	"TODO"		a[4]:%0:b[1]
+{
+	DECLARE debug[6]	ALIAS ia[4]:z[1]:ib[1];
+
+	ia<-a;
+	ib<-b;
+
+	DEBUG_TRACE "TIA : Unknown Register Write",debug;
+}
+
+INSTRUCTION	WriteRegister	"VBLANK"	%000000
+{
+	BLK<-DB[1..1];
+	DEBUG_TRACE "TIA : VBLANK - xx----V-";
+}
+
+INSTRUCTION	WriteRegister	"WSync"		%000010
+{
+	_RDY<-0;
+	DEBUG_TRACE "TIA : WSYNC - ASSERT RDY";
+}
+
+
+####### HClock Handlers
+
+INSTRUCTION	HClockLogic	"RESET"		%010100
+{
+	HReset<-1;
+	DEBUG_TRACE "RESET next count clock";
 }
