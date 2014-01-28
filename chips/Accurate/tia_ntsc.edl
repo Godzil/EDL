@@ -132,12 +132,21 @@ INSTRUCTION	WriteRegister	"VBLANK"	%000000
 	DEBUG_TRACE "TIA : VBLANK - xx----V-";
 }
 
-INSTRUCTION	WriteRegister	"WSync"		%000010
+INSTRUCTION	WriteRegister	"VSYNC"		%000001
+{
+}
+
+INSTRUCTION	WriteRegister	"WSYNC"		%000010
 {
 	_RDY<-0;
 	DEBUG_TRACE "TIA : WSYNC - ASSERT RDY";
 }
 
+INSTRUCTION	WriteRegister	"RSYNC"		%000011
+{
+	HReset<-1;
+	DEBUG_TRACE "TIA : RSYNC - Reset Timing";
+}
 
 ####### HClock Handlers
 
