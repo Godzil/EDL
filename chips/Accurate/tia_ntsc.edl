@@ -47,6 +47,11 @@ DECLARE		VBLANK[1];
 DECLARE		LUBK[3];			# Current Bkground Luminance
 DECLARE		COBK[4];			# Current Bkground Colour
 
+DECLARE		LUPF[3];			# Current Playfield Luminance
+DECLARE		COPF[4];			# Current Playfield Colour
+
+DECLARE		PF1[8];
+
 FUNCTION INTERNAL UpdateHCounter
 {
 	# Check for illegal condition
@@ -148,21 +153,77 @@ HANDLER O2	TRANSITION(0,1)
 
 ####### Register Handlers
 
-MAPPING TODO[2]
+MAPPING TODO[6]
 {
-	%10	""	%10;
-	%11	""	%11;
+#	%000000	""	$0;
+#	%000001	""	$1;
+#	%000010	""	$2;
+#	%000011	""	$3;
+	%000100	""	$4;
+	%000101	""	$5;
+	%000110	""	$6;
+	%000111	""	$7;
+#	%001000	""	$8;
+#	%001001	""	$9;
+	%001010	""	$A;
+	%001011	""	$B;
+	%001100	""	$C;
+	%001101	""	$D;
+#	%001110	""	$E;
+	%001111	""	$F;
+	%010000	""	$10;
+	%010001	""	$11;
+	%010010	""	$12;
+	%010011	""	$13;
+	%010100	""	$14;
+	%010101	""	$15;
+	%010110	""	$16;
+	%010111	""	$17;
+	%011000	""	$18;
+	%011001	""	$19;
+	%011010	""	$1A;
+	%011011	""	$1B;
+	%011100	""	$1C;
+	%011101	""	$1D;
+	%011110	""	$1E;
+	%011111	""	$1F;
+	%100000	""	$20;
+	%100001	""	$21;
+	%100010	""	$22;
+	%100011	""	$23;
+	%100100	""	$24;
+	%100101	""	$25;
+	%100110	""	$26;
+	%100111	""	$27;
+	%101000	""	$28;
+	%101001	""	$29;
+	%101010	""	$2A;
+	%101011	""	$2B;
+	%101100	""	$2C;
+	%101101	""	$2D;
+	%101110	""	$2E;
+	%101111	""	$2F;
+	%110000	""	$30;
+	%110001	""	$31;
+	%110010	""	$32;
+	%110011	""	$33;
+	%110100	""	$34;
+	%110101	""	$35;
+	%110110	""	$36;
+	%110111	""	$37;
+	%111000	""	$38;
+	%111001	""	$39;
+	%111010	""	$3A;
+	%111011	""	$3B;
+	%111100	""	$3C;
+	%111101	""	$3D;
+	%111110	""	$3E;
+	%111111	""	$3F;
 }
 
-INSTRUCTION	WriteRegister	"TODO"		a[3]:TODO:b[1]
+INSTRUCTION	WriteRegister	"TODO"		TODO
 {
-	DECLARE debug[6]	ALIAS ia[3]:td[2]:ib[1];
-
-	ia<-a;
-	td<-TODO;
-	ib<-b;
-
-	DEBUG_TRACE "TIA : Unknown Register Write",debug;
+	DEBUG_TRACE "TIA : Unknown Register Write",TODO;
 }
 
 INSTRUCTION	WriteRegister	"VSYNC"		%000000
@@ -191,6 +252,23 @@ INSTRUCTION	WriteRegister	"RSYNC"		%000011
 	#DEBUG_TRACE "TIA : RSYNC - Reset Timing (strobe)";
 }
 
+INSTRUCTION	WriteRegister	"COLUPF"	%001000
+{
+	DECLARE	colGlue[4]	ALIAS	d67[2]:d54[2];
+	DECLARE	lumGlue[3]	ALIAS	d3[1]:d2[1]:d1[1];
+
+	d67<-DB67;
+	d54<-DB05[4..5];
+	d3<-DB05[3..3];
+	d2<-DB05[2..2];
+	d1<-DB05[1..1];
+
+	COPF<-colGlue;
+	LUPF<-lumGlue;
+
+	DEBUG_TRACE "TIA : COLUPF - CCCClll-",COPF,LUPF,DB67,DB05;
+}
+
 INSTRUCTION	WriteRegister	"COLUBK"	%001001
 {
 	DECLARE	colGlue[4]	ALIAS	d67[2]:d54[2];
@@ -207,6 +285,19 @@ INSTRUCTION	WriteRegister	"COLUBK"	%001001
 
 	#DEBUG_TRACE "TIA : COLUBK - CCCClll-",COBK,LUBK,DB67,DB05;
 }
+
+INSTRUCTION	WriteRegister	"PF1"	%001110
+{
+	DECLARE dbGlue[8]	ALIAS	d67[2]:d50[6];
+
+	d67<-DB67;
+	d50<-DB05;
+
+	PF1<-dbGlue;
+
+	DEBUG_TRACE "TIA : PF1 - xxxxxxxx",dbGlue;
+}
+
 
 ####### HClock Handlers
 

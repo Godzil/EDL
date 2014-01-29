@@ -42,9 +42,9 @@ HANDLER DB		ALWAYS
 HANDLER O0		ALWAYS
 {
 	O2<-O2_PhaseDelay;
-	IF RDY
+	IF RDY | (~m6502 PIN_RW)
 	{
-		m6502 PIN_O0<-O0;	# Hack for now, stops 6502 operations by no longer toggling clock - as far as i can tell, remaining operations should continue -e.g. RIOT clocking
+		m6502 PIN_O0<-O0;	# Hack for now, stops 6502 operations by no longer toggling clock (ignored for write cycles)- as far as i can tell, remaining operations should continue -e.g. RIOT clocking
 	}
 	AB<-m6502 PIN_AB;
 	DB<-m6502 PIN_DB;
