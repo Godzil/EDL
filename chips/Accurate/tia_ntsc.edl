@@ -50,7 +50,11 @@ DECLARE		COBK[4];			# Current Bkground Colour
 DECLARE		LUPF[3];			# Current Playfield Luminance
 DECLARE		COPF[4];			# Current Playfield Colour
 
-DECLARE		PF1[8];
+DECLARE		PF[20]		ALIAS	PF0[4]:PF1[8]:PF2[8];# {%10101010101010101010};		# Stored in normalised order for quicker indexing
+
+DECLARE		pfIndex[8];
+DECLARE		pfMayMirror[1];
+DECLARE		pfDelay[4];
 
 FUNCTION INTERNAL UpdateHCounter
 {
@@ -70,6 +74,9 @@ FUNCTION INTERNAL UpdateHCounter
 	}
 	IF HReset
 	{
+		pfMayMirror<-0;
+		pfIndex<-0;
+
 		HReset<-0;
 		HCounter<-0;
 
@@ -95,8 +102,10 @@ FUNCTION INTERNAL UpdateO0
 	}
 
 	SYNC<-VSYNC | HSYNC;
+}
 
-	#TODO - Need MUX
+FUNCTION INTERNAL	PlayfieldMux
+{
 	IF (HBLANK|VBLANK)
 	{
 		LUM0<-0;
@@ -106,10 +115,34 @@ FUNCTION INTERNAL UpdateO0
 	}
 	IF ~(HBLANK|VBLANK)
 	{
-		LUM0<-LUBK[0..0];
-		LUM1<-LUBK[1..1];
-		LUM2<-LUBK[2..2];
-		COL<-COBK;
+		#Clock playfield things here
+		DECLARE T[1];
+		DECLARE col[1];
+
+		IF pfMayMirror
+		{
+			ROR(PF,T,0,pfIndex);
+		}
+		IF ~pfMayMirror
+		{
+			ROL(PF,T,0,pfIndex);
+		}
+		ROL(pfDelay,col,T,1)->pfDelay;
+
+		IF col
+		{
+			LUM0<-LUPF[0..0];
+			LUM1<-LUPF[1..1];
+			LUM2<-LUPF[2..2];
+			COL<-COPF;
+		}
+		IF ~col
+		{
+			LUM0<-LUBK[0..0];
+			LUM1<-LUBK[1..1];
+			LUM2<-LUBK[2..2];
+			COL<-COBK;
+		}
 	}
 }
 
@@ -124,6 +157,7 @@ HANDLER	OSC	TRANSITION(0,1)
 	{
 		CALL UpdateHCounter();
 	}
+	CALL PlayfieldMux();
 	CALL UpdateO0();
 }
 
@@ -168,9 +202,9 @@ MAPPING TODO[6]
 	%001010	""	$A;
 	%001011	""	$B;
 	%001100	""	$C;
-	%001101	""	$D;
+#	%001101	""	$D;
 #	%001110	""	$E;
-	%001111	""	$F;
+#	%001111	""	$F;
 	%010000	""	$10;
 	%010001	""	$11;
 	%010010	""	$12;
@@ -286,6 +320,20 @@ INSTRUCTION	WriteRegister	"COLUBK"	%001001
 	#DEBUG_TRACE "TIA : COLUBK - CCCClll-",COBK,LUBK,DB67,DB05;
 }
 
+INSTRUCTION	WriteRegister	"PF0"	%001101
+{
+	DECLARE dbGlue[4]	ALIAS	d4[1]:d5[1]:d6[1]:d7[1];
+
+	d4<-(DB05[4..4]);
+	d5<-(DB05[5..5]);
+	d6<-(DB67[0..0]);
+	d7<-(DB67[1..1]);
+
+	PF0<-dbGlue;
+
+	DEBUG_TRACE "TIA : PF0 - xxxx---- ",PF0;
+}
+
 INSTRUCTION	WriteRegister	"PF1"	%001110
 {
 	DECLARE dbGlue[8]	ALIAS	d67[2]:d50[6];
@@ -295,11 +343,83 @@ INSTRUCTION	WriteRegister	"PF1"	%001110
 
 	PF1<-dbGlue;
 
-	DEBUG_TRACE "TIA : PF1 - xxxxxxxx",dbGlue;
+	DEBUG_TRACE "TIA : PF1 - xxxxxxxx ",PF1;
 }
 
+INSTRUCTION	WriteRegister	"PF2"	%001111
+{
+	DECLARE dbGlue[8]	ALIAS	d0[1]:d1[1]:d2[1]:d3[1]:d4[1]:d5[1]:d6[1]:d7[1];
+
+	d0<-(DB05[0..0]);
+	d1<-(DB05[1..1]);
+	d2<-(DB05[2..2]);
+	d3<-(DB05[3..3]);
+	d4<-(DB05[4..4]);
+	d5<-(DB05[5..5]);
+	d6<-(DB67[0..0]);
+	d7<-(DB67[1..1]);
+
+	PF2<-dbGlue;
+
+	DEBUG_TRACE "TIA : PF2 - xxxxxxxx ",PF2;
+}
+
+MAPPING PlayfieldZone[6]
+{
+#	%011100	"Bit0"		$1;	
+	%101110	"Bit1"		$2;	
+	%010111 "Bit2"		$3;	
+	%101011 "Bit3"		$4;	
+	%110101 "Bit4"		$5;	
+	%011010 "Bit5"		$6;	
+	%001101 "Bit6"		$7;	
+	%000110 "Bit7"		$8;	
+	%000011 "Bit8"		$9;	
+	%100001 "Bit9"		$A;	
+	%010000 "Bit10"		$B;	
+	%101000 "Bit11"		$C;	
+	%110100 "Bit12"		$D;	
+	%111010 "Bit13"		$E;	
+	%011101 "Bit14"		$F;	
+	%001110 "Bit15"		$10;	
+	%000111 "Bit16"		$11;	
+	%100011 "Bit17"		$12;	
+	%110001 "Bit18"		$13;	
+	%011000 "Bit19"		$14;	
+#	%101100 "Bit0"		$1;	
+	%110110 "Bit1"		$2;	
+	%011011 "Bit2"		$3;	
+	%101101 "Bit3"		$4;	
+	%010110 "Bit4"		$5;	
+	%001011 "Bit5"		$6;	
+	%100101 "Bit6"		$7;	
+	%010010 "Bit7"		$8;	
+	%001001 "Bit8"		$9;	
+	%000100 "Bit9"		$A;	
+	%100010 "Bit10"		$B;	
+	%010001 "Bit11"		$C;	
+	%001000 "Bit12"		$D;	
+	%100100 "Bit13"		$E;	
+	%110010 "Bit14"		$F;	
+	%011001 "Bit15"		$10;	
+	%001100 "Bit16"		$11;	
+	%100110 "Bit17"		$12;	
+	%010011 "Bit18"		$13;	
+	%101001 "Bit19"		$14;	
+}
 
 ####### HClock Handlers
+
+INSTRUCTION	HClockLogic	"%M0"	PlayfieldZone
+{
+	pfIndex<-PlayfieldZone;
+}
+
+INSTRUCTION	HClockLogic	"Center"	%101100
+{
+	pfMayMirror<-1;
+	pfIndex<-$1;
+}
 
 INSTRUCTION	HClockLogic	"HSYNC ON"	%111100
 {
@@ -313,11 +433,13 @@ INSTRUCTION	HClockLogic	"HSYNC OFF"	%110111
 
 INSTRUCTION	HClockLogic	"RESET HBLK"	%011100
 {
+	pfIndex<-$1;
 	HBLANK<-0;
 }
 
 INSTRUCTION	HClockLogic	"RESET"		%010100
 {
+	pfIndex<-$15;
 	HReset<-1;
 }
 

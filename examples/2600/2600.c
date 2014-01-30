@@ -79,7 +79,7 @@ int InitialiseMemory()
 	return 0;
 }
 
-int doDebug=1;
+int doDebug=0;
 
 // MMAP - apparantly
 // ROM - A12 = 1
@@ -551,6 +551,10 @@ void DummyNTSCTV()
 			{
 				curScan=0;
 				curPos=0;
+            			glfwMakeContextCurrent(windows[MAIN_WINDOW]);
+				ShowScreen(MAIN_WINDOW,WIDTH,HEIGHT);
+				glfwSwapBuffers(windows[MAIN_WINDOW]);
+				memset(videoMemory,WIDTH*HEIGHT*4,0);
 			}
 		}
 		syncCounter=0;
@@ -649,11 +653,16 @@ int main(int argc,char**argv)
 			static int normalSpeed=1;
 
 			if (pixelClock>=(228*262))
+			{
 				pixelClock-=228*262;
+			}
+			else
+			{
+            			glfwMakeContextCurrent(windows[MAIN_WINDOW]);
+				ShowScreen(MAIN_WINDOW,WIDTH,HEIGHT);
+				glfwSwapBuffers(windows[MAIN_WINDOW]);
+			}
 
-            		glfwMakeContextCurrent(windows[MAIN_WINDOW]);
-			ShowScreen(MAIN_WINDOW,WIDTH,HEIGHT);
-			glfwSwapBuffers(windows[MAIN_WINDOW]);
 				
 			glfwPollEvents();
 			
