@@ -50,6 +50,13 @@ DECLARE		COBK[4];			# Current Bkground Colour
 DECLARE		LUPF[3];			# Current Playfield Luminance
 DECLARE		COPF[4];			# Current Playfield Colour
 
+DECLARE		LUP0[3];			# Current Player 0 Luminance
+DECLARE		COP0[4];			# Current Player 0 Colour
+DECLARE		LUP1[3];			# Current Player 1 Luminance
+DECLARE		COP1[4];			# Current Player 1 Colour
+
+DECLARE		CTRLPF[5]	ALIAS	BALLSIZE[2]:PFP[1]:SCORE[1]:REF[1];
+
 DECLARE		PF[20]		ALIAS	PF0[4]:PF1[8]:PF2[8];# {%10101010101010101010};		# Stored in normalised order for quicker indexing
 
 DECLARE		pfIndex[8];
@@ -116,25 +123,45 @@ FUNCTION INTERNAL	PlayfieldMux
 	IF ~(HBLANK|VBLANK)
 	{
 		#Clock playfield things here
-		DECLARE T[1];
 		DECLARE col[1];
+		DECLARE T[1];
 
-		IF pfMayMirror
+		IF pfMayMirror&REF
 		{
-			ROR(PF,T,0,pfIndex);
+			AFFECT col AS BIT(0) {ROR(PF,T,0,pfIndex-1) };
 		}
-		IF ~pfMayMirror
+		IF ~(pfMayMirror&REF)
 		{
-			ROL(PF,T,0,pfIndex);
+			AFFECT col AS BIT(19) {ROL(PF,T,0,pfIndex-1) };
 		}
-		ROL(pfDelay,col,T,1)->pfDelay;
+		ROL(pfDelay,col,col,1)->pfDelay;
 
 		IF col
 		{
-			LUM0<-LUPF[0..0];
-			LUM1<-LUPF[1..1];
-			LUM2<-LUPF[2..2];
-			COL<-COPF;
+			IF SCORE
+			{
+				IF pfMayMirror
+				{
+					LUM0<-LUP1[0..0];
+					LUM1<-LUP1[1..1];
+					LUM2<-LUP1[2..2];
+					COL<-COP1;
+				}
+				IF ~pfMayMirror
+				{
+					LUM0<-LUP0[0..0];
+					LUM1<-LUP0[1..1];
+					LUM2<-LUP0[2..2];
+					COL<-COP0;
+				}
+			}
+			IF ~SCORE
+			{
+				LUM0<-LUPF[0..0];
+				LUM1<-LUPF[1..1];
+				LUM2<-LUPF[2..2];
+				COL<-COPF;
+			}
 		}
 		IF ~col
 		{
@@ -195,11 +222,11 @@ MAPPING TODO[6]
 #	%000011	""	$3;
 	%000100	""	$4;
 	%000101	""	$5;
-	%000110	""	$6;
-	%000111	""	$7;
+#	%000110	""	$6;
+#	%000111	""	$7;
 #	%001000	""	$8;
 #	%001001	""	$9;
-	%001010	""	$A;
+#	%001010	""	$A;
 	%001011	""	$B;
 	%001100	""	$C;
 #	%001101	""	$D;
@@ -286,6 +313,40 @@ INSTRUCTION	WriteRegister	"RSYNC"		%000011
 	#DEBUG_TRACE "TIA : RSYNC - Reset Timing (strobe)";
 }
 
+INSTRUCTION	WriteRegister	"COLUP0"	%000110
+{
+	DECLARE	colGlue[4]	ALIAS	d67[2]:d54[2];
+	DECLARE	lumGlue[3]	ALIAS	d3[1]:d2[1]:d1[1];
+
+	d67<-DB67;
+	d54<-DB05[4..5];
+	d3<-DB05[3..3];
+	d2<-DB05[2..2];
+	d1<-DB05[1..1];
+
+	COP0<-colGlue;
+	LUP0<-lumGlue;
+
+	DEBUG_TRACE "TIA : COLUP0 - CCCClll-",COP0,LUP0,DB67,DB05;
+}
+
+INSTRUCTION	WriteRegister	"COLUP1"	%000111
+{
+	DECLARE	colGlue[4]	ALIAS	d67[2]:d54[2];
+	DECLARE	lumGlue[3]	ALIAS	d3[1]:d2[1]:d1[1];
+
+	d67<-DB67;
+	d54<-DB05[4..5];
+	d3<-DB05[3..3];
+	d2<-DB05[2..2];
+	d1<-DB05[1..1];
+
+	COP1<-colGlue;
+	LUP1<-lumGlue;
+
+	DEBUG_TRACE "TIA : COLUP1 - CCCClll-",COP1,LUP1,DB67,DB05;
+}
+
 INSTRUCTION	WriteRegister	"COLUPF"	%001000
 {
 	DECLARE	colGlue[4]	ALIAS	d67[2]:d54[2];
@@ -300,7 +361,7 @@ INSTRUCTION	WriteRegister	"COLUPF"	%001000
 	COPF<-colGlue;
 	LUPF<-lumGlue;
 
-	DEBUG_TRACE "TIA : COLUPF - CCCClll-",COPF,LUPF,DB67,DB05;
+	#DEBUG_TRACE "TIA : COLUPF - CCCClll-",COPF,LUPF,DB67,DB05;
 }
 
 INSTRUCTION	WriteRegister	"COLUBK"	%001001
@@ -320,6 +381,16 @@ INSTRUCTION	WriteRegister	"COLUBK"	%001001
 	#DEBUG_TRACE "TIA : COLUBK - CCCClll-",COBK,LUBK,DB67,DB05;
 }
 
+INSTRUCTION	WriteRegister	"CTRLPF"	%001010
+{
+	REF<-DB05[0..0];
+	SCORE<-DB05[1..1];
+	PFP<-DB05[2..2];
+	BALLSIZE<-DB05[4..5];
+
+	DEBUG_TRACE "TIA : CTRLPF - --SS-psr",BALLSIZE,PFP,SCORE,REF;
+}
+
 INSTRUCTION	WriteRegister	"PF0"	%001101
 {
 	DECLARE dbGlue[4]	ALIAS	d4[1]:d5[1]:d6[1]:d7[1];
@@ -331,7 +402,7 @@ INSTRUCTION	WriteRegister	"PF0"	%001101
 
 	PF0<-dbGlue;
 
-	DEBUG_TRACE "TIA : PF0 - xxxx---- ",PF0;
+	#DEBUG_TRACE "TIA : PF0 - xxxx---- ",PF0;
 }
 
 INSTRUCTION	WriteRegister	"PF1"	%001110
@@ -343,7 +414,7 @@ INSTRUCTION	WriteRegister	"PF1"	%001110
 
 	PF1<-dbGlue;
 
-	DEBUG_TRACE "TIA : PF1 - xxxxxxxx ",PF1;
+	#DEBUG_TRACE "TIA : PF1 - xxxxxxxx ",PF1;
 }
 
 INSTRUCTION	WriteRegister	"PF2"	%001111
@@ -361,7 +432,7 @@ INSTRUCTION	WriteRegister	"PF2"	%001111
 
 	PF2<-dbGlue;
 
-	DEBUG_TRACE "TIA : PF2 - xxxxxxxx ",PF2;
+	#DEBUG_TRACE "TIA : PF2 - xxxxxxxx ",PF2;
 }
 
 MAPPING PlayfieldZone[6]

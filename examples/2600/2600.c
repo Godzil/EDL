@@ -71,7 +71,7 @@ int InitialiseMemory()
 	if (LoadRom(&Rom[2048],2048,"roms/volymN.bin"))		// mirror
 		return 1;
 #else
-	if (LoadRom(Rom,4096,"roms/kernel_13.bin"))
+	if (LoadRom(Rom,4096,"roms/inv-plus.bin"))
 		return 1;
 
 #endif
@@ -559,7 +559,8 @@ void DummyNTSCTV()
 		}
 		syncCounter=0;
 
-		if ((curScan<262) && (curPos<228))
+//#enforced blank
+		if ((curScan>37) && (curScan<262) && (curPos<228))
 		{
 			uint32_t* outputTexture = (uint32_t*)(videoMemory[MAIN_WINDOW]);
 	

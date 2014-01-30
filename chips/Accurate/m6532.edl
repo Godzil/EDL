@@ -36,7 +36,6 @@ HANDLER	O2	TRANSITION(0,1)
 			IF ~_RS
 			{
 				DB<-RAM[[AD]];
-				DEBUG_TRACE "RAM READ : ",BASE 16, AD,DB;
 			}
 			IF _RS
 			{
@@ -66,7 +65,6 @@ HANDLER	O2	TRANSITION(0,1)
 			IF ~_RS
 			{
 				RAM[[AD]]<-DB;
-				DEBUG_TRACE "RAM WRITE : ",BASE 16, AD,DB;
 			}
 			IF _RS
 			{
