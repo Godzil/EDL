@@ -152,49 +152,49 @@ INSTRUCTION WriteRegister	"DDRB"	%11
 INSTRUCTION LoadCounter	"/1"	%00
 {
 	DB->Counter[0..7];
-	DEBUG_TRACE "RIOT - Timer Write /1";
+	#DEBUG_TRACE "RIOT - Timer Write /1";
 }
 
 INSTRUCTION LoadCounter	"/8"	%01
 {
 	DB->Counter[3..10];
-	DEBUG_TRACE "RIOT - Timer Write /8";
+	#DEBUG_TRACE "RIOT - Timer Write /8";
 }
 
 INSTRUCTION LoadCounter	"/64"	%10
 {
 	DB->Counter[6..13];
-	DEBUG_TRACE "RIOT - Timer Write /64";
+	#DEBUG_TRACE "RIOT - Timer Write /64";
 }
 
 INSTRUCTION LoadCounter	"/1024"	%11
 {
 	DB->Counter[10..17];
-	DEBUG_TRACE "RIOT - Timer Write /1024";
+	#DEBUG_TRACE "RIOT - Timer Write /1024";
 }
 
 INSTRUCTION ReadCounter	"/1"	%00
 {
 	DB<-Counter[0..7];
-	DEBUG_TRACE "RIOT - Timer Read /1",DB;
+	#DEBUG_TRACE "RIOT - Timer Read /1",DB;
 }
 
 INSTRUCTION ReadCounter	"/8"	%01
 {
 	DB<-Counter[3..10];
-	DEBUG_TRACE "RIOT - Timer Read /8",DB;
+	#DEBUG_TRACE "RIOT - Timer Read /8",DB;
 }
 
 INSTRUCTION ReadCounter	"/64"	%10
 {
 	DB<-Counter[6..13];
-	DEBUG_TRACE "RIOT - Timer Read /64",DB;
+	#DEBUG_TRACE "RIOT - Timer Read /64",DB;
 }
 
 INSTRUCTION ReadCounter	"/1024"	%11
 {
 	DB<-Counter[10..17];
-	DEBUG_TRACE "RIOT - Timer Read /1024",DB;
+	#DEBUG_TRACE "RIOT - Timer Read /1024",DB;
 }
 
 
