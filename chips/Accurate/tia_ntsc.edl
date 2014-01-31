@@ -37,9 +37,16 @@ DECLARE		Div4[2];			# Clock Divider
 DECLARE		HCounter[6]			{%111111};			# Polynomial counter
 DECLARE		HReset[1];							# Used to cause next count to be reset
 
+DECLARE		PlayerCounterEnable[1];
 
 DECLARE		Player0Counter[6]		{%111111};
 DECLARE		Player0Reset[1];
+DECLARE		Player0Draw[1];
+DECLARE		Player0Bit[3];
+
+DECLARE		GRP0Delay[1];
+
+DECLARE		GRP0[[3]][1];
 
 DECLARE		VSYNC[1];
 DECLARE		HSYNC[1];
@@ -149,6 +156,24 @@ FUNCTION INTERNAL	PlayfieldMux
 			LUM2<-LUBK[2..2];
 			COL<-COBK;
 		}
+
+		IF GRP0Delay
+		{
+			LUM0<-1;
+			LUM1<-1;
+			LUM2<-1;
+			COL<-0;
+		}
+		GRP0Delay<-0;
+		IF Player0Draw
+		{
+			IF Player0Bit==%111
+			{
+				Player0Draw<-0;
+			}
+			GRP0Delay<-GRP0[[Player0Bit]];
+			Player0Bit<-Player0Bit+1;
+		}
 	}
 }
 
@@ -178,7 +203,7 @@ HANDLER	OSC	TRANSITION(0,1)
 
 		EXECUTE HClockLogic HCounter;
 
-		IF ~(VSYNC|HSYNC)
+		IF PlayerCounterEnable
 		{
 			CALL UpdatePolyCounter(Player0Counter)->Player0Counter;
 
@@ -187,7 +212,6 @@ HANDLER	OSC	TRANSITION(0,1)
 				Player0Reset<-0;
 				Player0Counter<-0;
 			}
-
 			EXECUTE PlayerLogic Player0Counter;
 		}
 	}
@@ -250,7 +274,7 @@ MAPPING TODO[6]
 	%011000	""	$18;
 	%011001	""	$19;
 	%011010	""	$1A;
-	%011011	""	$1B;
+#	%011011	""	$1B;
 	%011100	""	$1C;
 	%011101	""	$1D;
 	%011110	""	$1E;
@@ -449,6 +473,25 @@ INSTRUCTION	WriteRegister	"RESP0"	%010000
 	DEBUG_TRACE "TIA : RESP0 (strobe)";
 }
 
+INSTRUCTION	WriteRegister	"GRP0"	%011011
+{
+	DECLARE dbGlue[8]	ALIAS	d67[2]:d05[6];
+
+	d67<-DB67;
+	d05<-DB05;
+
+	GRP0[[0]]<-dbGlue[0..0];
+	GRP0[[1]]<-dbGlue[1..1];
+	GRP0[[2]]<-dbGlue[2..2];
+	GRP0[[3]]<-dbGlue[3..3];
+	GRP0[[4]]<-dbGlue[4..4];
+	GRP0[[5]]<-dbGlue[5..5];
+	GRP0[[6]]<-dbGlue[6..6];
+	GRP0[[7]]<-dbGlue[7..7];
+
+	DEBUG_TRACE "TIA : GRP0 xxxxxxxx",dbGlue;
+}
+
 MAPPING PlayfieldZone[6]
 {
 #	%011100	"Bit0"		$1;	
@@ -518,12 +561,14 @@ INSTRUCTION	HClockLogic	"HSYNC OFF"	%110111
 
 INSTRUCTION	HClockLogic	"RESET HBLK"	%011100
 {
+	PlayerCounterEnable<-1;
 	pfIndex<-$1;
 	HBLANK<-0;
 }
 
 INSTRUCTION	HClockLogic	"RESET"		%010100
 {
+	PlayerCounterEnable<-0;
 	pfIndex<-$15;
 	HReset<-1;
 }
@@ -571,13 +616,16 @@ MAPPING Player0Timer[6]
 	%101100	""	36;	##	48	144
 	%110110	""	37;	##	49.3	148
 	%011011	""	38;	##	50.6	152
-	%101101	""	39;	##	52	156	RESET, START DRAWING (always)
+#	%101101	""	39;	##	52	156	RESET, START DRAWING (always)
 }
+
+
 
 INSTRUCTION	PlayerLogic	"RESET"		%101101
 {
 	Player0Reset<-1;
-#	Player0<-1;
+	Player0Draw<-1;
+	Player0Bit<-0;
 }
 
 

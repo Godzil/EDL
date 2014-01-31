@@ -49,15 +49,39 @@ uint8_t MAIN_PinGetSYNC();	// just for debugging
 //unsigned char Ram[0x80];		Implemented inside m6532 RIOT
 unsigned char Rom[0x1000];
 
-int LoadRom(unsigned char* rom,unsigned int size,const char* fname)
+int LoadRom(unsigned char* rom,const char* fname)
 {
+	unsigned int size;
 	unsigned int readFileSize=0;
 	FILE* inFile = fopen(fname,"rb");
-	if (!inFile || size != (readFileSize = fread(rom,1,size,inFile)))
+
+	if (!inFile)
 	{
-		printf("Failed to open rom : %s - %d/%d",fname,readFileSize,size);
+		printf("Failed to open rom : %s\n",fname);
 		return 1;
 	}
+	fseek(inFile,0,SEEK_END);
+	size=ftell(inFile);
+	fseek(inFile,0,SEEK_SET);
+	if (size>4096)
+	{
+		printf("Rom requires mapping.. no mapper support\n");
+		return 1;
+	}
+	if (size!=2048 && size!=4096)
+	{
+		printf("Irregular rom size... \n");
+		return 1;
+	}
+
+	if (size==2048)	// Load Twice as mirror - first time to upper half
+	{
+		readFileSize=fread(rom+2048,1,size,inFile);
+		fseek(inFile,0,SEEK_SET);
+	}
+
+	readFileSize=fread(rom,1,size,inFile);
+
 	fclose(inFile);
 	return 0;
 }
@@ -71,8 +95,8 @@ int InitialiseMemory()
 	if (LoadRom(&Rom[2048],2048,"roms/volymN.bin"))		// mirror
 		return 1;
 #else
-	if (LoadRom(Rom,4096,"roms/inv-plus.bin"))
-		return 1;
+//	if (LoadRom(Rom,4096,"roms/inv-plus.bin"))
+//		return 1;
 
 #endif
 
@@ -589,6 +613,11 @@ int main(int argc,char**argv)
 	int w,h;
 	double	atStart,now,remain;
 	uint16_t bp;
+
+	if (LoadRom(Rom,argv[1]))
+	{
+		return 1;
+	}
 
 	/// Initialize GLFW 
 	glfwInit(); 
