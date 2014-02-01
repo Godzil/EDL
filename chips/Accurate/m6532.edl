@@ -25,6 +25,10 @@ DECLARE		Counter[17];		# Timer with preScaler e.g. /1 = 0..7 /8 = 3..10 /64 = 6.
 
 DECLARE		TimerTypeLatch[2];
 
+DECLARE		DDRA[8];
+DECLARE		DDRB[8];
+
+
 HANDLER	O2	TRANSITION(0,1)
 {
 	DECLARE reg[2];
@@ -111,42 +115,50 @@ HANDLER O2	TRANSITION(1,0)
 
 INSTRUCTION ReadRegister	"RegA"	%00
 {
-	DEBUG_TRACE "RIOT - Read Output Reg A";
+	(PA&(~DDRA))|(DB&DDRA)->DB;
+	DEBUG_TRACE "RIOT - Read Output Reg A",DB;
 }
 
 INSTRUCTION ReadRegister	"DDRA"	%01
 {
-	DEBUG_TRACE "RIOT - Read Output DDRA";
+	DDRA->DB;
+	DEBUG_TRACE "RIOT - Read Output DDRA",DB;
 }
 
 INSTRUCTION ReadRegister	"RegB"	%10
 {
-	DEBUG_TRACE "RIOT - Read Output Reg A";
+	(PB&(~DDRB))|(DB&DDRB)->DB;
+	DEBUG_TRACE "RIOT - Read Output Reg B",DB;
 }
 
 INSTRUCTION ReadRegister	"DDRB"	%11
 {
-	DEBUG_TRACE "RIOT - Read Output DDRA";
+	DDRB->DB;
+	DEBUG_TRACE "RIOT - Read Output DDRB",DB;
 }
 
 INSTRUCTION WriteRegister	"RegA"	%00
 {
-	DEBUG_TRACE "RIOT - Write Output Reg A";
+	(PA&(~DDRA))|(DB&DDRA)->PA;
+	DEBUG_TRACE "RIOT - Write Output Reg A",PA;
 }
 
 INSTRUCTION WriteRegister	"DDRA"	%01
 {
-	DEBUG_TRACE "RIOT - Write Output DDRA";
+	DB->DDRA;
+	DEBUG_TRACE "RIOT - Write Output DDRA",DDRA;
 }
 
 INSTRUCTION WriteRegister	"RegB"	%10
 {
-	DEBUG_TRACE "RIOT - Write Output Reg A";
+	(PB&(~DDRB))|(DB&DDRB)->PB;
+	DEBUG_TRACE "RIOT - Write Output Reg B",PB;
 }
 
 INSTRUCTION WriteRegister	"DDRB"	%11
 {
-	DEBUG_TRACE "RIOT - Write Output DDRA";
+	DB->DDRB;
+	DEBUG_TRACE "RIOT - Write Output DDRB",DDRB;
 }
 
 INSTRUCTION LoadCounter	"/1"	%00

@@ -54,6 +54,9 @@ DECLARE		HSYNC[1];
 DECLARE		HBLANK[1];
 DECLARE		VBLANK[1];
 
+DECLARE		IP45CTRL[1];
+DECLARE		IP03CTRL[1];
+
 DECLARE		LUBK[3];			# Current Bkground Luminance
 DECLARE		COBK[4];			# Current Bkground Colour
 
@@ -72,6 +75,16 @@ DECLARE		PF[20]		ALIAS	PF0[4]:PF1[8]:PF2[8];# {%10101010101010101010};		# Stored
 DECLARE		pfIndex[8];
 DECLARE		pfMayMirror[1];
 DECLARE		pfDelay[4];
+
+
+DECLARE		CXM0P[2];
+DECLARE		CXM1P[2];
+DECLARE		CXP0FB[2];
+DECLARE		CXP1FB[2];
+DECLARE		CXM0FB[2];
+DECLARE		CXM1FB[2];
+DECLARE		CXBLPF[1];
+DECLARE		CXPPMM[2];
 
 FUNCTION INTERNAL outCounter[6]	UpdatePolyCounter	inCounter[6]
 {
@@ -159,10 +172,10 @@ FUNCTION INTERNAL	PlayfieldMux
 
 		IF GRP0Delay
 		{
-			LUM0<-1;
-			LUM1<-1;
-			LUM2<-1;
-			COL<-0;
+			LUM0<-LUP0[0..0];
+			LUM1<-LUP0[1..1];
+			LUM2<-LUP0[2..2];
+			COL<-COP0;
 		}
 		GRP0Delay<-0;
 		IF Player0Draw
@@ -212,7 +225,7 @@ HANDLER	OSC	TRANSITION(0,1)
 				Player0Reset<-0;
 				Player0Counter<-0;
 			}
-			EXECUTE PlayerLogic Player0Counter;
+			EXECUTE Player0Logic Player0Counter;
 		}
 	}
 	CALL PlayfieldMux();
@@ -238,14 +251,79 @@ HANDLER O2	TRANSITION(0,1)
 	{
 		IF (~_CS0) & (~_CS2) & (~_CS3) & CS1
 		{
-			#DEBUG_TRACE "TIA Possible Register Read",BASE 16,AB;
+			DECLARE read[6]	ALIAS	dc[2]:ra[4];
+			read<-AB;
+			EXECUTE ReadRegister ra;
 		}
 	}
 }
 
-####### Register Handlers
+####### Read Register Handlers
 
-MAPPING TODO[6]
+MAPPING TODOR[4]
+{
+	%1110	""	$E;
+	%1111	""	$F;
+}
+
+MAPPING COLIS[4]
+{
+	%0000	"CXM0P"		CXM0P->DB67;
+	%0001	"CXM1P"		CXM1P->DB67;
+	%0010	"CXP0FB"	CXP0FB->DB67;
+	%0011	"CXP1FB"	CXP1FB->DB67;
+	%0100	"CXM0FB"	CXM0FB->DB67;
+	%0101	"CXM1FB"	CXM1FB->DB67;
+	%0110	"CXBLPF"	CXBLPF->DB67;
+	%0111	"CXPPMM"	CXPPMM->DB67;
+}
+
+MAPPING DUMPEDINPORTS[4]
+{
+	%1000	""	DI[0..0];
+	%1001	""	DI[1..1];
+	%1010	""	DI[2..2];
+	%1011	""	DI[3..3];
+}
+
+MAPPING LATCHEDINPORTS[4]
+{
+	%1100	""	LI[0..0];
+	%1101	""	LI[1..1];
+}
+
+INSTRUCTION	ReadRegister	"TODO"		TODOR
+{
+	DEBUG_TRACE "TIA : Unknown Register Read ",TODOR;
+}
+
+INSTRUCTION	ReadRegister	"Collision : %M0"	COLIS
+{
+	COLIS;
+}
+
+INSTRUCTION	ReadRegister	"Dumped Inputs : %M0"		DUMPEDINPORTS
+{
+	IF IP03CTRL
+	{
+		0->DB67[1..1];
+	}
+	IF ~IP03CTRL
+	{
+		DUMPEDINPORTS->DB67[1..1];
+	}
+	DEBUG_TRACE "Read Dumped ",DB67;
+}
+
+INSTRUCTION	ReadRegister	"Latched Inputs : %M0"		LATCHEDINPORTS
+{
+	LATCHEDINPORTS->DB67[1..1];
+	DEBUG_TRACE "Read Latch ",DB67;
+}
+
+####### Write Register Handlers
+
+MAPPING TODOW[6]
 {
 #	%000000	""	$0;
 #	%000001	""	$1;
@@ -313,9 +391,9 @@ MAPPING TODO[6]
 	%111111	""	$3F;
 }
 
-INSTRUCTION	WriteRegister	"TODO"		TODO
+INSTRUCTION	WriteRegister	"TODO"		TODOW
 {
-	DEBUG_TRACE "TIA : Unknown Register Write",TODO;
+	DEBUG_TRACE "TIA : Unknown Register Write ",TODOW;
 }
 
 INSTRUCTION	WriteRegister	"VSYNC"		%000000
@@ -328,8 +406,9 @@ INSTRUCTION	WriteRegister	"VBLANK"	%000001
 {
 	BLK<-(DB05[1..1]);
 	VBLANK<-(DB05[1..1]);
-
-	#DEBUG_TRACE "TIA : VBLANK - xx----V-";
+	IP45CTRL<-(DB67[0..0]);
+	IP03CTRL<-(DB67[1..1]);
+	DEBUG_TRACE "TIA : VBLANK - xx----V- ",IP03CTRL,IP45CTRL,VBLANK;
 }
 
 INSTRUCTION	WriteRegister	"WSYNC"		%000010
@@ -575,53 +654,20 @@ INSTRUCTION	HClockLogic	"RESET"		%010100
 
 ######### Player0 Handlers
 
-MAPPING Player0Timer[6]
+MAPPING Player0StartPoints[6]
 {
-	%000000	""	0;	##	0	0	(draw -012)
-	%100000	""	1;	##	1.3	4	(draw 3456)
-	%110000	""	2;	##	2.6	8	(draw 7---)
 	%111000	""	3;	##	4	12	START DRAWING (NUSIZ=001,011)
-	%111100	""	4;	##	5.3	16	(draw -012)
-	%111110	""	5;	##	6.6	20	(draw 3456)
-	%011111	""	6;	##	8	24	(draw 7---)
 	%101111	""	7;	##	9.3	28	START DRAWING (NUSIZ=011,010,110)
-	%110111	""	8;	##	10.6	32	(draw -012)
-	%111011	""	9;	##	12	36	(draw 3456)
-	%111101	""	10;	##	13.3	40	(draw 7---)
-	%011110	""	11;	##	14.6	44
-	%001111	""	12;	##	16	48
-	%100111	""	13;	##	17.3	52
-	%110011	""	14;	##	18.6	56
 	%111001	""	15;	##	20	60	START DRAWING (NUSIZ=100,110)
-	%011100	""	16;	##	21.3	64	(draw -012)
-	%101110	""	17;	##	22.6	68	(draw 3456)
-	%010111	""	18;	##	24	72	(draw 7---)
-	%101011	""	19;	##	25.3	76
-	%110101	""	20;	##	26.6	80
-	%011010	""	21;	##	28	84
-	%001101	""	22;	##	29.3	88
-	%000110	""	23;	##	30.6	92
-	%000011	""	24;	##	32	96
-	%100001	""	25;	##	33.3	100
-	%010000	""	26;	##	34.6	104
-	%101000	""	27;	##	36	108
-	%110100	""	28;	##	37.3	112
-	%111010	""	29;	##	38.6	116
-	%011101	""	30;	##	40	120
-	%001110	""	31;	##	41.3	124
-	%000111	""	32;	##	42.6	128
-	%100011	""	33;	##	44	132
-	%110001	""	34;	##	45.3	136
-	%011000	""	35;	##	46.6	140
-	%101100	""	36;	##	48	144
-	%110110	""	37;	##	49.3	148
-	%011011	""	38;	##	50.6	152
-#	%101101	""	39;	##	52	156	RESET, START DRAWING (always)
 }
 
+INSTRUCTION	Player0Logic	"START"		Player0StartPoints
+{
+	Player0Draw<-1;
+	Player0Bit<-0;
+}
 
-
-INSTRUCTION	PlayerLogic	"RESET"		%101101
+INSTRUCTION	Player0Logic	"RESET"		%101101
 {
 	Player0Reset<-1;
 	Player0Draw<-1;

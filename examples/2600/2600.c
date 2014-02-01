@@ -439,11 +439,16 @@ void sizeHandler(GLFWwindow* window,int xs,int ys)
 
 void UpdateHardware()
 {
+	// For now assume a joystick?
+	RIOT_PinSetPB(0x07);			// d7 (p0 difficulty 0 easy 1 hard) d6 (p1 difficulty) d3 (b/w 0 colour 1) d2 (game select pressed 0 released 1) d0 (game reset pressed 0 released 1)
+	RIOT_PinSetPA(0xFF);			// Joystick (Right, Left, Down, Up | Right, Left, Down, Up) 0 pressed 1 released
+	TIA_PinSetDI(0xF);
+	TIA_PinSetLI(0x3);			// Joystick (Fire | Fire) 0 pressed 1 released
 }
 		
 int stopTheClock=1;
 
-void CheckCPU_Debug()
+void DoCPU()
 {
 	uint16_t addr;
 
@@ -476,7 +481,7 @@ void CheckCPU_Debug()
 			case 0x0000:
 			case 0x0200:
 				//printf("TIA ACCESS @%04X\n",addr);
-				MAIN_PinSetDB(0);
+				MAIN_PinSetDB((MAIN_PinGetDB()&0x3F)|(TIA_PinGetDB67()<<6));
 				break;
 			case 0x0080:
 			case 0x0280:
@@ -662,11 +667,11 @@ int main(int argc,char**argv)
 		{
 			TIA_PinSetOSC(1);
 
-			CheckCPU_Debug();
+			DoCPU();
 
 			TIA_PinSetOSC(0);
 			
-			CheckCPU_Debug();
+			DoCPU();
 
 			DummyNTSCTV();
 
