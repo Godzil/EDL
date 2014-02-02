@@ -440,10 +440,36 @@ void sizeHandler(GLFWwindow* window,int xs,int ys)
 void UpdateHardware()
 {
 	// For now assume a joystick?
+
+	uint8_t joyMove=0xFF;
+	uint8_t joyFire=0x03;
+
+	if (KeyDown(GLFW_KEY_UP))
+	{
+		joyMove&=0xEF;
+	}
+	if (KeyDown(GLFW_KEY_DOWN))
+	{
+		joyMove&=0xDF;
+	}
+	if (KeyDown(GLFW_KEY_LEFT))
+	{
+		joyMove&=0xBF;
+	}
+	if (KeyDown(GLFW_KEY_RIGHT))
+	{
+		joyMove&=0x7F;
+	}
+	if (KeyDown(GLFW_KEY_SPACE))
+	{
+		joyFire&=0x02;
+	}
+	
+
 	RIOT_PinSetPB(0x07);			// d7 (p0 difficulty 0 easy 1 hard) d6 (p1 difficulty) d3 (b/w 0 colour 1) d2 (game select pressed 0 released 1) d0 (game reset pressed 0 released 1)
-	RIOT_PinSetPA(0xFF);			// Joystick (Right, Left, Down, Up | Right, Left, Down, Up) 0 pressed 1 released
+	RIOT_PinSetPA(joyMove);			// Joystick (Right, Left, Down, Up | Right, Left, Down, Up) 0 pressed 1 released
 	TIA_PinSetDI(0xF);
-	TIA_PinSetLI(0x3);			// Joystick (Fire | Fire) 0 pressed 1 released
+	TIA_PinSetLI(joyFire);			// Joystick (Fire | Fire) 0 pressed 1 released
 }
 		
 int stopTheClock=1;
@@ -554,7 +580,12 @@ uint32_t quickPalette[8*16]={
 			,0x00001F34,0x00004156,0x00006378,0x0016859A,0x0038A7BC,0x005AC9DE,0x007CEBFF,0x009EFFFF
 			,0x00002F00,0x0000510F,0x00007331,0x00119553,0x0033B775,0x0055D997,0x0077FBB9,0x0099FFDB
 			,0x00003500,0x00005700,0x00007900,0x001F9B11,0x0041BD33,0x0063DF55,0x0085FF77,0x00A7FF99
-			,0x00002F00,0x00005100,0x001B7300,0x003D9500,0x005FB703,0x0081D925,0x00A3FB47,0x00C5FF69};
+			,0x00002F00,0x00005100,0x001B7300,0x003D9500,0x005FB703,0x0081D925,0x00A3FB47,0x00C5FF69
+			,0x00001F00,0x001F4100,0x00416300,0x00638500,0x0085A700,0x00A7C912,0x00C9EB34,0x00EBFF56
+			,0x00240800,0x00462A00,0x00684C00,0x008A6E00,0x00AC9000,0x00CEB220,0x00F0D442,0x00FFF664
+			};
+
+
 
 // If sync lasts at least 300 clocks, wait for sync end, and thats the start of first line. If sync<300 assume HSYNC -- crude but will work for now
 void DummyNTSCTV()

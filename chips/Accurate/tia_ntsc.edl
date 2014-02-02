@@ -33,6 +33,7 @@ DECLARE		o0_clk_counter[2];
 DECLARE		O0_actual[1];
 
 DECLARE		Div4[2];			# Clock Divider
+DECLARE		Pl0Div4[2];			# Player0 Clock Divider
 
 DECLARE		HCounter[6]			{%111111};			# Polynomial counter
 DECLARE		HReset[1];							# Used to cause next count to be reset
@@ -57,6 +58,8 @@ DECLARE		VBLANK[1];
 DECLARE		IP45CTRL[1];
 DECLARE		IP03CTRL[1];
 
+DECLARE		NUSIZ0[5]	ALIAS	NUSIZ0_M[2]:NUSIZ0_P[3];
+
 DECLARE		LUBK[3];			# Current Bkground Luminance
 DECLARE		COBK[4];			# Current Bkground Colour
 
@@ -76,6 +79,14 @@ DECLARE		pfIndex[8];
 DECLARE		pfMayMirror[1];
 DECLARE		pfDelay[4];
 
+DECLARE		HMP0[4];			# stored bit 3 inverted  -  horizontal motion register
+
+
+DECLARE		HMOVE[1];			# Hmove latch, causes additional clocks to player/missile/ball counters -- these should fall during HBLANK, extends HBLANK by 8 colour clocks
+DECLARE		HMP0LATCH[1];
+DECLARE		HMOVECMP[4];			# Comparator - clears latch when equal to horizontal motion register, and resets respective latch. 
+DECLARE		HMOVECNTEN[1];			# clear when HMOVECMP wraps
+
 
 DECLARE		CXM0P[2];
 DECLARE		CXM1P[2];
@@ -85,6 +96,9 @@ DECLARE		CXM0FB[2];
 DECLARE		CXM1FB[2];
 DECLARE		CXBLPF[1];
 DECLARE		CXPPMM[2];
+
+
+DECLARE		DBG_Counter[8];
 
 FUNCTION INTERNAL outCounter[6]	UpdatePolyCounter	inCounter[6]
 {
@@ -117,7 +131,7 @@ FUNCTION INTERNAL	PlayfieldMux
 		LUM0<-0;
 		LUM1<-0;
 		LUM2<-0;
-		COL<-0;
+		COL<-1;
 	}
 	IF ~(HBLANK|VBLANK)
 	{
@@ -195,6 +209,39 @@ FUNCTION INTERNAL	tick[1]	UpdateDiv4
 	AFFECT tick AS CARRY(1) { Div4+1 }->Div4;
 }
 
+FUNCTION INTERNAL	ne[1]	NoneEqual	a[4],b[4]
+{
+	DECLARE T[1] {1};
+
+	T<-T & ((a[0..0])^(b[0..0]));			# effectively a ^ b is 1 if bits are different - T will thus be cleared if any bits are equal
+	T<-T & ((a[1..1])^(b[1..1]));			# effectively a ^ b is 1 if bits are different - T will thus be cleared if any bits are equal
+	T<-T & ((a[2..2])^(b[2..2]));			# effectively a ^ b is 1 if bits are different - T will thus be cleared if any bits are equal
+	T<-T & ((a[3..3])^(b[3..3]));			# effectively a ^ b is 1 if bits are different - T will thus be cleared if any bits are equal
+
+	ne<-T;
+}
+
+FUNCTION INTERNAL UpdatePl0Div4
+{
+	DECLARE clk[1];
+	DBG_Counter<-DBG_Counter+1;
+
+	AFFECT clk AS CARRY(1) { Pl0Div4+1 }->Pl0Div4;
+	IF clk
+	{
+		CALL UpdatePolyCounter(Player0Counter)->Player0Counter;
+		#DEBUG_TRACE Player0Counter;
+		IF (Player0Counter==%111111) | Player0Reset
+		{
+			#DEBUG_TRACE "pulses : ",BASE 10,DBG_Counter;
+			DBG_Counter<-0;
+			Player0Reset<-0;
+			Player0Counter<-0;
+		}
+		EXECUTE Player0Logic Player0Counter;
+	}
+}
+
 HANDLER	OSC	TRANSITION(0,1)
 {
 	IF CALL UpdateDiv4()
@@ -216,18 +263,35 @@ HANDLER	OSC	TRANSITION(0,1)
 
 		EXECUTE HClockLogic HCounter;
 
-		IF PlayerCounterEnable
+		IF HMOVECNTEN
 		{
-			CALL UpdatePolyCounter(Player0Counter)->Player0Counter;
+			#DEBUG_TRACE " ",HMOVECMP,HMP0,HMOVE,HMP0LATCH,HMOVECNTEN,HCounter;
 
-			IF (Player0Counter==%111111) | Player0Reset
+			IF CALL NoneEqual(HMOVECMP,HMP0)
 			{
-				Player0Reset<-0;
-				Player0Counter<-0;
+				HMP0LATCH<-0;
 			}
-			EXECUTE Player0Logic Player0Counter;
+
+			HMOVECMP<-HMOVECMP-1;
+			IF HMOVECMP==%1111
+			{
+				HMOVECNTEN<-0;
+			}
+
+			#DEBUG_TRACE "-",HMOVECMP,HMP0,HMOVE,HMP0LATCH,HMOVECNTEN,HCounter;
+		}
+
+		IF HMP0LATCH
+		{
+			CALL UpdatePl0Div4();
 		}
 	}
+
+	IF PlayerCounterEnable 
+	{
+		CALL UpdatePl0Div4();
+	}
+			
 	CALL PlayfieldMux();
 	CALL UpdateO0();
 }
@@ -329,7 +393,7 @@ MAPPING TODOW[6]
 #	%000001	""	$1;
 #	%000010	""	$2;
 #	%000011	""	$3;
-	%000100	""	$4;
+#	%000100	""	$4;
 	%000101	""	$5;
 #	%000110	""	$6;
 #	%000111	""	$7;
@@ -357,7 +421,7 @@ MAPPING TODOW[6]
 	%011101	""	$1D;
 	%011110	""	$1E;
 	%011111	""	$1F;
-	%100000	""	$20;
+#	%100000	""	$20;
 	%100001	""	$21;
 	%100010	""	$22;
 	%100011	""	$23;
@@ -367,7 +431,7 @@ MAPPING TODOW[6]
 	%100111	""	$27;
 	%101000	""	$28;
 	%101001	""	$29;
-	%101010	""	$2A;
+#	%101010	""	$2A;
 	%101011	""	$2B;
 	%101100	""	$2C;
 	%101101	""	$2D;
@@ -408,7 +472,7 @@ INSTRUCTION	WriteRegister	"VBLANK"	%000001
 	VBLANK<-(DB05[1..1]);
 	IP45CTRL<-(DB67[0..0]);
 	IP03CTRL<-(DB67[1..1]);
-	DEBUG_TRACE "TIA : VBLANK - xx----V- ",IP03CTRL,IP45CTRL,VBLANK;
+	#DEBUG_TRACE "TIA : VBLANK - xx----V- ",IP03CTRL,IP45CTRL,VBLANK;
 }
 
 INSTRUCTION	WriteRegister	"WSYNC"		%000010
@@ -421,6 +485,14 @@ INSTRUCTION	WriteRegister	"RSYNC"		%000011
 {
 	HReset<-1;
 	#DEBUG_TRACE "TIA : RSYNC - Reset Timing (strobe)";
+}
+
+INSTRUCTION	WriteRegister	"NUSIZ0"	%000100
+{
+	(DB05[0..2])->NUSIZ0_P;
+	(DB05[4..5])->NUSIZ0_M;
+
+	DEBUG_TRACE "TIA : NUSIZ0 - --MM-PPP ",NUSIZ0_M,NUSIZ0_P;
 }
 
 INSTRUCTION	WriteRegister	"COLUP0"	%000110
@@ -571,6 +643,28 @@ INSTRUCTION	WriteRegister	"GRP0"	%011011
 	DEBUG_TRACE "TIA : GRP0 xxxxxxxx",dbGlue;
 }
 
+INSTRUCTION	WriteRegister	"HMP0"	%100000
+{
+	DB05[4..4]->HMP0[0..0];
+	DB05[5..5]->HMP0[1..1];
+	DB67[0..0]->HMP0[2..2];
+	~(DB67[1..1])->HMP0[3..3];	# store inverted for simple counter
+
+	DEBUG_TRACE "TIA : HMP0 xxxx---- ",HMP0;
+}
+
+INSTRUCTION	WriteRegister	"HMOVE"	%101010
+{
+	HMOVE<-1;	# Latch HMOVE (affects VBLANK END TIMING);
+	HMP0LATCH<-1;	# Latch more movement required for Player0
+	HMOVECMP<-$F;	# Decrements until wrap then stops
+	HMOVECNTEN<-1;	# Enabled counter
+
+	DEBUG_TRACE "TIA : HMOVE (strobe)",HCounter;
+}
+
+### Playfield
+
 MAPPING PlayfieldZone[6]
 {
 #	%011100	"Bit0"		$1;	
@@ -620,6 +714,13 @@ MAPPING PlayfieldZone[6]
 INSTRUCTION	HClockLogic	"%M0"	PlayfieldZone
 {
 	pfIndex<-PlayfieldZone;
+
+	IF (PlayfieldZone==$3)&HMOVE		# Extra blanking if HMOVE latched
+	{
+		PlayerCounterEnable<-1;
+		pfIndex<-$1;
+		HBLANK<-0;
+	}
 }
 
 INSTRUCTION	HClockLogic	"Center"	%101100
@@ -640,9 +741,12 @@ INSTRUCTION	HClockLogic	"HSYNC OFF"	%110111
 
 INSTRUCTION	HClockLogic	"RESET HBLK"	%011100
 {
-	PlayerCounterEnable<-1;
-	pfIndex<-$1;
-	HBLANK<-0;
+	IF ~HMOVE
+	{
+		PlayerCounterEnable<-1;
+		pfIndex<-$1;
+		HBLANK<-0;
+	}
 }
 
 INSTRUCTION	HClockLogic	"RESET"		%010100
@@ -650,6 +754,7 @@ INSTRUCTION	HClockLogic	"RESET"		%010100
 	PlayerCounterEnable<-0;
 	pfIndex<-$15;
 	HReset<-1;
+	HMOVE<-0;
 }
 
 ######### Player0 Handlers
@@ -663,8 +768,36 @@ MAPPING Player0StartPoints[6]
 
 INSTRUCTION	Player0Logic	"START"		Player0StartPoints
 {
-	Player0Draw<-1;
-	Player0Bit<-0;
+	DECLARE s[1];
+
+	IF Player0StartPoints==3
+	{
+		IF (NUSIZ0_P==%001)|(NUSIZ0_P==%011)
+		{
+			s<-1;
+		}
+	}
+	IF Player0StartPoints==7
+	{
+		IF (NUSIZ0_P==%010)|(NUSIZ0_P==%011)|(NUSIZ0_P==%110)
+		{
+			s<-1;
+		}
+	}
+	IF Player0StartPoints==15
+	{
+		IF (NUSIZ0_P==%100)|(NUSIZ0_P==%110)
+		{
+			s<-1;
+		}
+	}
+
+	IF s
+	{
+		Player0Draw<-1;
+		Player0Bit<-0;
+	}
+		
 }
 
 INSTRUCTION	Player0Logic	"RESET"		%101101
