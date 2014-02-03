@@ -37,6 +37,8 @@ void TIA_PinSetOSC(uint8_t);
 void TIA_PinSetO2(uint8_t);
 uint8_t TIA_PinGetO0();
 
+extern uint8_t TIA_CClock;
+
 void RIOT_PinSetO2(uint8_t);
 
 extern uint8_t RIOT_RAM[128];
@@ -166,7 +168,7 @@ extern uint8_t	MAIN_P;
 
 void DUMP_REGISTERS()
 {
-	printf("--------\n");
+	printf("--------CCLOCK : %d\n",TIA_CClock);
 	printf("FLAGS = N  V  -  B  D  I  Z  C\n");
 	printf("        %s  %s  %s  %s  %s  %s  %s  %s\n",
 			MAIN_P&0x80 ? "1" : "0",
@@ -440,7 +442,7 @@ void sizeHandler(GLFWwindow* window,int xs,int ys)
 void UpdateHardware()
 {
 	// For now assume a joystick?
-
+	static uint8_t switches=0x07;
 	uint8_t joyMove=0xFF;
 	uint8_t joyFire=0x03;
 
@@ -464,9 +466,39 @@ void UpdateHardware()
 	{
 		joyFire&=0x02;
 	}
-	
+	if (CheckKey(GLFW_KEY_F1))
+	{
+		ClearKey(GLFW_KEY_F1);
+		switches^=0x80;
+	}
+	if (CheckKey(GLFW_KEY_F2))
+	{
+		ClearKey(GLFW_KEY_F2);
+		switches^=0x40;
+	}
+	if (CheckKey(GLFW_KEY_F5))
+	{
+		ClearKey(GLFW_KEY_F5);
+		switches^=0x08;
+	}
+	if (CheckKey(GLFW_KEY_F6))
+	{
+		ClearKey(GLFW_KEY_F6);
+		switches^=0x04;
+	}
+	if (CheckKey(GLFW_KEY_F7))
+	{
+		ClearKey(GLFW_KEY_F7);
+		switches^=0x02;
+	}
+	if (CheckKey(GLFW_KEY_F8))
+	{
+		ClearKey(GLFW_KEY_F8);
+		switches^=0x01;
+	}
 
-	RIOT_PinSetPB(0x07);			// d7 (p0 difficulty 0 easy 1 hard) d6 (p1 difficulty) d3 (b/w 0 colour 1) d2 (game select pressed 0 released 1) d0 (game reset pressed 0 released 1)
+
+	RIOT_PinSetPB(switches);		// d7 (p0 difficulty 0 easy 1 hard) d6 (p1 difficulty) d3 (b/w 0 colour 1) d2 (game select pressed 0 released 1) d0 (game reset pressed 0 released 1)
 	RIOT_PinSetPA(joyMove);			// Joystick (Right, Left, Down, Up | Right, Left, Down, Up) 0 pressed 1 released
 	TIA_PinSetDI(0xF);
 	TIA_PinSetLI(joyFire);			// Joystick (Fire | Fire) 0 pressed 1 released

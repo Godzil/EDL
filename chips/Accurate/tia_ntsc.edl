@@ -36,6 +36,7 @@ DECLARE		Div4[2];			# Clock Divider
 DECLARE		Pl0Div4[2];			# Player0 Clock Divider
 
 DECLARE		HCounter[6]			{%111111};			# Polynomial counter
+DECLARE		CClock[8];
 DECLARE		HReset[1];							# Used to cause next count to be reset
 
 DECLARE		PlayerCounterEnable[1];
@@ -45,7 +46,7 @@ DECLARE		Player0Reset[1];
 DECLARE		Player0Draw[1];
 DECLARE		Player0Bit[3];
 
-DECLARE		GRP0Delay[1];
+DECLARE		GRP0Delay[6];
 
 DECLARE		GRP0[[3]][1];
 
@@ -59,6 +60,8 @@ DECLARE		IP45CTRL[1];
 DECLARE		IP03CTRL[1];
 
 DECLARE		NUSIZ0[5]	ALIAS	NUSIZ0_M[2]:NUSIZ0_P[3];
+
+DECLARE		REFP0[3];	# Reflect P0 (3 bit to accomodate simple XOR)
 
 DECLARE		LUBK[3];			# Current Bkground Luminance
 DECLARE		COBK[4];			# Current Bkground Colour
@@ -126,15 +129,8 @@ FUNCTION INTERNAL UpdateO0
 
 FUNCTION INTERNAL	PlayfieldMux
 {
-	IF (HBLANK|VBLANK)
-	{
-		LUM0<-0;
-		LUM1<-0;
-		LUM2<-0;
-		COL<-1;
-	}
-	IF ~(HBLANK|VBLANK)
-	{
+#	IF pfIndex!=0 #(HBLANK|VBLANK)
+#	{
 		#Clock playfield things here
 		DECLARE col[1];
 		DECLARE T[1];
@@ -147,7 +143,7 @@ FUNCTION INTERNAL	PlayfieldMux
 		{
 			AFFECT col AS BIT(19) {ROL(PF,T,0,pfIndex-1) };
 		}
-		ROL(pfDelay,col,col,1)->pfDelay;
+	#	ROL(pfDelay,col,col,1)->pfDelay;
 
 		IF col
 		{
@@ -184,23 +180,31 @@ FUNCTION INTERNAL	PlayfieldMux
 			COL<-COBK;
 		}
 
-		IF GRP0Delay
+		ROL(GRP0Delay,T,0,1)->GRP0Delay;
+		IF T
 		{
 			LUM0<-LUP0[0..0];
 			LUM1<-LUP0[1..1];
 			LUM2<-LUP0[2..2];
 			COL<-COP0;
 		}
-		GRP0Delay<-0;
 		IF Player0Draw
 		{
-			IF Player0Bit==%111
+			IF Player0Bit==%000
 			{
 				Player0Draw<-0;
 			}
-			GRP0Delay<-GRP0[[Player0Bit]];
-			Player0Bit<-Player0Bit+1;
+			(GRP0[[REFP0^Player0Bit]])->GRP0Delay[0..0];
+			Player0Bit<-Player0Bit-1;
 		}
+		
+#	}
+	IF (HBLANK|VBLANK)
+	{
+		LUM0<-0;
+		LUM1<-0;
+		LUM2<-0;
+		COL<-1;
 	}
 }
 
@@ -244,6 +248,7 @@ FUNCTION INTERNAL UpdatePl0Div4
 
 HANDLER	OSC	TRANSITION(0,1)
 {
+	CClock<-CClock+1;
 	IF CALL UpdateDiv4()
 	{
 		CALL UpdatePolyCounter(HCounter)->HCounter;
@@ -255,6 +260,7 @@ HANDLER	OSC	TRANSITION(0,1)
 
 			HReset<-0;
 			HCounter<-0;
+			CClock<-0;
 
 			HBLANK<-1;
 
@@ -400,7 +406,7 @@ MAPPING TODOW[6]
 #	%001000	""	$8;
 #	%001001	""	$9;
 #	%001010	""	$A;
-	%001011	""	$B;
+#	%001011	""	$B;
 	%001100	""	$C;
 #	%001101	""	$D;
 #	%001110	""	$E;
@@ -560,7 +566,7 @@ INSTRUCTION	WriteRegister	"COLUBK"	%001001
 	COBK<-colGlue;
 	LUBK<-lumGlue;
 
-	#DEBUG_TRACE "TIA : COLUBK - CCCClll-",COBK,LUBK,DB67,DB05;
+	#DEBUG_TRACE "TIA : COLUBK - CCCClll- ",COBK,LUBK,DB67,DB05;
 }
 
 INSTRUCTION	WriteRegister	"CTRLPF"	%001010
@@ -570,7 +576,16 @@ INSTRUCTION	WriteRegister	"CTRLPF"	%001010
 	PFP<-DB05[2..2];
 	BALLSIZE<-DB05[4..5];
 
-	#DEBUG_TRACE "TIA : CTRLPF - --SS-psr",BALLSIZE,PFP,SCORE,REF;
+	#DEBUG_TRACE "TIA : CTRLPF - --SS-psr ",BALLSIZE,PFP,SCORE,REF;
+}
+	
+INSTRUCTION	WriteRegister	"REFP0"		%001011
+{
+	DB05[3..3]->REFP0[0..0];
+	DB05[3..3]->REFP0[1..1];
+	DB05[3..3]->REFP0[2..2];
+
+	DEBUG_TRACE "TIA : REFP0 - ----r--- ",REFP0;
 }
 
 INSTRUCTION	WriteRegister	"PF0"	%001101
@@ -620,6 +635,7 @@ INSTRUCTION	WriteRegister	"PF2"	%001111
 INSTRUCTION	WriteRegister	"RESP0"	%010000
 {
 	Player0Reset<-1;
+	Pl0Div4<-0;
 
 	DEBUG_TRACE "TIA : RESP0 (strobe)";
 }
@@ -718,7 +734,6 @@ INSTRUCTION	HClockLogic	"%M0"	PlayfieldZone
 	IF (PlayfieldZone==$3)&HMOVE		# Extra blanking if HMOVE latched
 	{
 		PlayerCounterEnable<-1;
-		pfIndex<-$1;
 		HBLANK<-0;
 	}
 }
@@ -741,10 +756,10 @@ INSTRUCTION	HClockLogic	"HSYNC OFF"	%110111
 
 INSTRUCTION	HClockLogic	"RESET HBLK"	%011100
 {
+	pfIndex<-$1;
 	IF ~HMOVE
 	{
 		PlayerCounterEnable<-1;
-		pfIndex<-$1;
 		HBLANK<-0;
 	}
 }
@@ -795,7 +810,7 @@ INSTRUCTION	Player0Logic	"START"		Player0StartPoints
 	IF s
 	{
 		Player0Draw<-1;
-		Player0Bit<-0;
+		Player0Bit<-%111;
 	}
 		
 }
@@ -804,7 +819,7 @@ INSTRUCTION	Player0Logic	"RESET"		%101101
 {
 	Player0Reset<-1;
 	Player0Draw<-1;
-	Player0Bit<-0;
+	Player0Bit<-%111;
 }
 
 
