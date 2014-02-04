@@ -49,7 +49,11 @@ uint8_t MAIN_PinGetSYNC();	// just for debugging
 // Step 1. Memory
 
 //unsigned char Ram[0x80];		Implemented inside m6532 RIOT
-unsigned char Rom[0x1000];
+
+unsigned char Rom0[0x1000];
+unsigned char Rom1[0x1000];
+unsigned char* Rom=Rom0;
+unsigned int RomSize;
 
 int LoadRom(unsigned char* rom,const char* fname)
 {
@@ -63,14 +67,14 @@ int LoadRom(unsigned char* rom,const char* fname)
 		return 1;
 	}
 	fseek(inFile,0,SEEK_END);
-	size=ftell(inFile);
+	RomSize=size=ftell(inFile);
 	fseek(inFile,0,SEEK_SET);
-	if (size>4096)
+	if (size>8192)
 	{
 		printf("Rom requires mapping.. no mapper support\n");
 		return 1;
 	}
-	if (size!=2048 && size!=4096)
+	if (size!=2048 && size!=4096 && size!=8192)
 	{
 		printf("Irregular rom size... \n");
 		return 1;
@@ -78,11 +82,21 @@ int LoadRom(unsigned char* rom,const char* fname)
 
 	if (size==2048)	// Load Twice as mirror - first time to upper half
 	{
-		readFileSize=fread(rom+2048,1,size,inFile);
+		readFileSize=fread(Rom0+2048,1,size,inFile);
 		fseek(inFile,0,SEEK_SET);
 	}
 
-	readFileSize=fread(rom,1,size,inFile);
+	if (size<=4096)
+	{
+		readFileSize=fread(Rom0,1,size,inFile);
+	}
+
+	if (size==8192)
+	{
+		readFileSize=fread(Rom0,1,4096,inFile);
+		readFileSize=fread(Rom1,1,4096,inFile);
+	}
+	Rom=Rom0;
 
 	fclose(inFile);
 	return 0;
@@ -105,7 +119,7 @@ int InitialiseMemory()
 	return 0;
 }
 
-int doDebug=0;
+int doDebug=1;
 
 // MMAP - apparantly
 // ROM - A12 = 1
@@ -551,6 +565,19 @@ void DoCPU()
 			case 0x1200:
 			case 0x1280:
 				//printf("ROM ACCESS @%04X\n",addr);
+				if (RomSize>4096)
+				{
+					if (addr==0x1FF8)
+					{
+						Rom=Rom0;
+						printf("Paging Bank 0\n");
+					}
+					if (addr==0x1FF9)
+					{
+						Rom=Rom1;
+						printf("Paging Bank 1\n");
+					}
+				}
 				MAIN_PinSetDB(GetByte(addr));
 				break;
 		}
@@ -575,6 +602,19 @@ void DoCPU()
 			case 0x1080:
 			case 0x1200:
 			case 0x1280:
+				if (RomSize>4096)
+				{
+					if (addr==0x1FF8)
+					{
+						Rom=Rom0;
+						printf("Paging Bank 0\n");
+					}
+					if (addr==0x1FF9)
+					{
+						Rom=Rom1;
+						printf("Paging Bank 1\n");
+					}
+				}
 				printf("ROM WRITE @%04X\n",addr);
 				break;
 		}
@@ -582,7 +622,7 @@ void DoCPU()
 
 	if (lastO0==0 && curO0==1)
 	{
-		if ((TIA_PinGet_RDY()&1)&&(MAIN_PinGetSYNC()&1))
+		if (/*(TIA_PinGet_RDY()&1)&&*/(MAIN_PinGetSYNC()&1))
 		{
 			lastPC=addr;
 
