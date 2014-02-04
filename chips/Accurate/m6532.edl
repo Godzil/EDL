@@ -1,7 +1,7 @@
 #
 # MOS 6532 (RIOT)
 #
-# Bare Bones at present - ignores Peripherals / Timer / Internal Registers
+# Missing Interrupt flag read and edge detect. Everything else should be there.
 #
 #
 #
@@ -116,49 +116,49 @@ HANDLER O2	TRANSITION(1,0)
 INSTRUCTION ReadRegister	"RegA"	%00
 {
 	(PA&(~DDRA))|(DB&DDRA)->DB;
-	DEBUG_TRACE "RIOT - Read Output Reg A",DB;
+#	DEBUG_TRACE "RIOT - Read Output Reg A",DB;
 }
 
 INSTRUCTION ReadRegister	"DDRA"	%01
 {
 	DDRA->DB;
-	DEBUG_TRACE "RIOT - Read Output DDRA",DB;
+#	DEBUG_TRACE "RIOT - Read Output DDRA",DB;
 }
 
 INSTRUCTION ReadRegister	"RegB"	%10
 {
 	(PB&(~DDRB))|(DB&DDRB)->DB;
-	DEBUG_TRACE "RIOT - Read Output Reg B",DB;
+#	DEBUG_TRACE "RIOT - Read Output Reg B",DB;
 }
 
 INSTRUCTION ReadRegister	"DDRB"	%11
 {
 	DDRB->DB;
-	DEBUG_TRACE "RIOT - Read Output DDRB",DB;
+#	DEBUG_TRACE "RIOT - Read Output DDRB",DB;
 }
 
 INSTRUCTION WriteRegister	"RegA"	%00
 {
 	(PA&(~DDRA))|(DB&DDRA)->PA;
-	DEBUG_TRACE "RIOT - Write Output Reg A",PA;
+#	DEBUG_TRACE "RIOT - Write Output Reg A",PA;
 }
 
 INSTRUCTION WriteRegister	"DDRA"	%01
 {
 	DB->DDRA;
-	DEBUG_TRACE "RIOT - Write Output DDRA",DDRA;
+#	DEBUG_TRACE "RIOT - Write Output DDRA",DDRA;
 }
 
 INSTRUCTION WriteRegister	"RegB"	%10
 {
 	(PB&(~DDRB))|(DB&DDRB)->PB;
-	DEBUG_TRACE "RIOT - Write Output Reg B",PB;
+#	DEBUG_TRACE "RIOT - Write Output Reg B",PB;
 }
 
 INSTRUCTION WriteRegister	"DDRB"	%11
 {
 	DB->DDRB;
-	DEBUG_TRACE "RIOT - Write Output DDRB",DDRB;
+#	DEBUG_TRACE "RIOT - Write Output DDRB",DDRB;
 }
 
 INSTRUCTION LoadCounter	"/1"	%00
