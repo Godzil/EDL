@@ -9,16 +9,55 @@ clean:
 	rmdir out
 	$(RM) 2600.exe
 
+# Cart types
+
+out/2k.lls: carts/2k.edl
+	mkdir -p out
+	$(EDL) -O2 -s CART2K_ carts/2k.edl >out/2k.lls
+
+out/2k.lls.s: out/2k.lls
+	llc -O3 out/2k.lls
+
+out/4k.lls: carts/4k.edl
+	mkdir -p out
+	$(EDL) -O2 -s CART4K_ carts/4k.edl >out/4k.lls
+
+out/4k.lls.s: out/4k.lls
+	llc -O3 out/4k.lls
+
+out/8k.lls: carts/8k.edl
+	mkdir -p out
+	$(EDL) -O2 -s CART8K_ carts/8k.edl >out/8k.lls
+
+out/8k.lls.s: out/8k.lls
+	llc -O3 out/8k.lls
+
+out/16k.lls: carts/16k.edl
+	mkdir -p out
+	$(EDL) -O2 -s CART16K_ carts/16k.edl >out/16k.lls
+
+out/16k.lls.s: out/16k.lls
+	llc -O3 out/16k.lls
+
+out/32k.lls: carts/32k.edl
+	mkdir -p out
+	$(EDL) -O2 -s CART32K_ carts/32k.edl >out/32k.lls
+
+out/32k.lls.s: out/32k.lls
+	llc -O3 out/32k.lls
+
+# 2600
+
 out/m6532.lls: ../../chips/Accurate/m6532.edl
 	mkdir -p out
 	$(EDL) -O2 -s RIOT_ ../../chips/Accurate/m6532.edl >out/m6532.lls
 
 out/m6532.lls.s: out/m6532.lls
-	llc -O2 out/m6532.lls
+	llc -O3 out/m6532.lls
 
 out/tia_ntsc.lls: ../../chips/Accurate/tia_ntsc.edl
 	mkdir -p out
-	$(EDL) -O3 -s TIA_ ../../chips/Accurate/tia_ntsc.edl >out/tia_ntsc.lls
+	$(EDL) -O2 -s TIA_ ../../chips/Accurate/tia_ntsc.edl >out/tia_ntsc.lls
 
 out/tia_ntsc.lls.s: out/tia_ntsc.lls
 	llc -O3 out/tia_ntsc.lls
@@ -30,5 +69,5 @@ out/m6507_main.lls: ../../chips/Accurate/m6507.edl
 out/m6507_main.lls.s: out/m6507_main.lls
 	llc -O3 out/m6507_main.lls
 
-2600: 2600.c out/m6507_main.lls.s out/tia_ntsc.lls.s out/m6532.lls.s
-	gcc -O3 -g 2600.c out/m6507_main.lls.s out/tia_ntsc.lls.s out/m6532.lls.s $(ALLIBS) $(GLLIBS) -o 2600.exe
+2600: 2600.c out/m6507_main.lls.s out/tia_ntsc.lls.s out/m6532.lls.s out/2k.lls.s out/4k.lls.s out/8k.lls.s out/16k.lls.s out/32k.lls.s
+	gcc -O3 -g 2600.c out/m6507_main.lls.s out/tia_ntsc.lls.s out/m6532.lls.s out/2k.lls.s out/4k.lls.s out/8k.lls.s out/16k.lls.s out/32k.lls.s $(ALLIBS) $(GLLIBS) -o 2600.exe

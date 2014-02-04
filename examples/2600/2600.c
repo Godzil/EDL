@@ -25,6 +25,45 @@ void AudioInitialise();
 void UpdateAudio();
 void _AudioAddData(int channel,int16_t dacValue);
 
+// For Mappers
+
+uint8_t CART2K_LoadRom(uint32_t addr,uint8_t byte);
+uint8_t CART2K_GetDebugByte(uint32_t addr);
+uint8_t CART2K_PinGetD();
+void	CART2K_PinSetD(uint8_t);
+void	CART2K_PinSetA(uint16_t);
+
+uint8_t CART4K_LoadRom(uint32_t addr,uint8_t byte);
+uint8_t CART4K_GetDebugByte(uint32_t addr);
+uint8_t CART4K_PinGetD();
+void	CART4K_PinSetD(uint8_t);
+void	CART4K_PinSetA(uint16_t);
+
+uint8_t CART8K_LoadRom(uint32_t addr,uint8_t byte);
+uint8_t CART8K_GetDebugByte(uint32_t addr);
+uint8_t CART8K_PinGetD();
+void	CART8K_PinSetD(uint8_t);
+void	CART8K_PinSetA(uint16_t);
+
+uint8_t CART16K_LoadRom(uint32_t addr,uint8_t byte);
+uint8_t CART16K_GetDebugByte(uint32_t addr);
+uint8_t CART16K_PinGetD();
+void	CART16K_PinSetD(uint8_t);
+void	CART16K_PinSetA(uint16_t);
+
+uint8_t CART32K_LoadRom(uint32_t addr,uint8_t byte);
+uint8_t CART32K_GetDebugByte(uint32_t addr);
+uint8_t CART32K_PinGetD();
+void	CART32K_PinSetD(uint8_t);
+void	CART32K_PinSetA(uint16_t);
+
+uint8_t (*Mapper_LoadRom)(uint32_t addr,uint8_t byte)=NULL;
+uint8_t (*Mapper_GetDebugByte)(uint32_t addr)=NULL;
+uint8_t (*Mapper_PinGetD)()=NULL;
+void (*Mapper_PinSetD)(uint8_t)=NULL;
+void (*Mapper_PinSetA)(uint16_t)=NULL;
+
+
 uint16_t MAIN_PinGetAB();
 uint8_t MAIN_PinGetDB();
 void MAIN_PinSetDB(uint8_t);
@@ -46,18 +85,60 @@ extern uint8_t RIOT_RAM[128];
 
 uint8_t MAIN_PinGetSYNC();	// just for debugging
 
-// Step 1. Memory
+int IdentifyRomAndSetMapper(uint32_t size)
+{
+	if (size==2048)
+	{
+		Mapper_LoadRom=CART2K_LoadRom;
+		Mapper_GetDebugByte=CART2K_GetDebugByte;
+		Mapper_PinGetD=CART2K_PinGetD;
+		Mapper_PinSetD=CART2K_PinSetD;
+		Mapper_PinSetA=CART2K_PinSetA;
+		return 0;
+	}
+	if (size==4096)
+	{
+		Mapper_LoadRom=CART4K_LoadRom;
+		Mapper_GetDebugByte=CART4K_GetDebugByte;
+		Mapper_PinGetD=CART4K_PinGetD;
+		Mapper_PinSetD=CART4K_PinSetD;
+		Mapper_PinSetA=CART4K_PinSetA;
+		return 0;
+	}
+	if (size==8192)
+	{
+		Mapper_LoadRom=CART8K_LoadRom;
+		Mapper_GetDebugByte=CART8K_GetDebugByte;
+		Mapper_PinGetD=CART8K_PinGetD;
+		Mapper_PinSetD=CART8K_PinSetD;
+		Mapper_PinSetA=CART8K_PinSetA;
+		return 0;
+	}
+	if (size==16384)
+	{
+		Mapper_LoadRom=CART16K_LoadRom;
+		Mapper_GetDebugByte=CART16K_GetDebugByte;
+		Mapper_PinGetD=CART16K_PinGetD;
+		Mapper_PinSetD=CART16K_PinSetD;
+		Mapper_PinSetA=CART16K_PinSetA;
+		return 0;
+	}
+	if (size==32768)
+	{
+		Mapper_LoadRom=CART32K_LoadRom;
+		Mapper_GetDebugByte=CART32K_GetDebugByte;
+		Mapper_PinGetD=CART32K_PinGetD;
+		Mapper_PinSetD=CART32K_PinSetD;
+		Mapper_PinSetA=CART32K_PinSetA;
+		return 0;
+	}
 
-//unsigned char Ram[0x80];		Implemented inside m6532 RIOT
+}
 
-unsigned char Rom0[0x1000];
-unsigned char Rom1[0x1000];
-unsigned char* Rom=Rom0;
-unsigned int RomSize;
-
-int LoadRom(unsigned char* rom,const char* fname)
+int LoadRom(const char* fname)
 {
 	unsigned int size;
+	unsigned int RomSize;
 	unsigned int readFileSize=0;
 	FILE* inFile = fopen(fname,"rb");
 
@@ -69,34 +150,34 @@ int LoadRom(unsigned char* rom,const char* fname)
 	fseek(inFile,0,SEEK_END);
 	RomSize=size=ftell(inFile);
 	fseek(inFile,0,SEEK_SET);
-	if (size>8192)
+
+	// Identify cart size - should provide an overload
+
+	if (IdentifyRomAndSetMapper(RomSize))		// Will probably need MD5 in future - but we can allow overide via 2nd argument I guess
 	{
-		printf("Rom requires mapping.. no mapper support\n");
+		printf("Unsupported rom size - try forcing mapper?\n");
+		fclose(inFile);
 		return 1;
 	}
-	if (size!=2048 && size!=4096 && size!=8192)
-	{
-		printf("Irregular rom size... \n");
-		return 1;
-	}
 
-	if (size==2048)	// Load Twice as mirror - first time to upper half
+	while (size)
 	{
-		readFileSize=fread(Rom0+2048,1,size,inFile);
-		fseek(inFile,0,SEEK_SET);
-	}
+		uint8_t byte;
+		if (1!=fread(&byte,1,1,inFile))
+		{
+			printf("Error Reading File!\n");
+			fclose(inFile);
+			return 1;
+		}
 
-	if (size<=4096)
-	{
-		readFileSize=fread(Rom0,1,size,inFile);
+		if (0!=Mapper_LoadRom(readFileSize,byte))
+		{
+			printf("Warning ROM larger than cart size.. truncated!\n");
+			break;
+		}
+		size--;
+		readFileSize++;
 	}
-
-	if (size==8192)
-	{
-		readFileSize=fread(Rom0,1,4096,inFile);
-		readFileSize=fread(Rom1,1,4096,inFile);
-	}
-	Rom=Rom0;
 
 	fclose(inFile);
 	return 0;
@@ -136,7 +217,7 @@ uint8_t GetByteDebugger(uint16_t addr)
 {
 	if (addr&0x1000)
 	{
-		return Rom[addr&0xFFF];
+		return Mapper_GetDebugByte(addr);
 	}
 	if ((addr&0x1080)==0x00)
 	{
@@ -151,15 +232,6 @@ uint8_t GetByteDebugger(uint16_t addr)
 		return 0;
 	}
 	return 0;
-}
-
-uint8_t GetByte(uint16_t addr)
-{
-	return Rom[addr&0xFFF];
-}
-
-void SetByte(uint16_t addr,uint8_t byte)
-{
 }
 
 
@@ -564,21 +636,10 @@ void DoCPU()
 			case 0x1080:
 			case 0x1200:
 			case 0x1280:
-				//printf("ROM ACCESS @%04X\n",addr);
-				if (RomSize>4096)
-				{
-					if (addr==0x1FF8)
-					{
-						Rom=Rom0;
-						printf("Paging Bank 0\n");
-					}
-					if (addr==0x1FF9)
-					{
-						Rom=Rom1;
-						printf("Paging Bank 1\n");
-					}
-				}
-				MAIN_PinSetDB(GetByte(addr));
+				// May need to adjust in future (since technically the cart sees all addresses!)
+				Mapper_PinSetD(MAIN_PinGetDB());
+				Mapper_PinSetA(MAIN_PinGetAB());
+				MAIN_PinSetDB(Mapper_PinGetD());
 				break;
 		}
 	}
@@ -602,20 +663,10 @@ void DoCPU()
 			case 0x1080:
 			case 0x1200:
 			case 0x1280:
-				if (RomSize>4096)
-				{
-					if (addr==0x1FF8)
-					{
-						Rom=Rom0;
-						printf("Paging Bank 0\n");
-					}
-					if (addr==0x1FF9)
-					{
-						Rom=Rom1;
-						printf("Paging Bank 1\n");
-					}
-				}
-				printf("ROM WRITE @%04X\n",addr);
+				// May need to adjust in future (since technically the cart sees all addresses!)
+				Mapper_PinSetD(MAIN_PinGetDB());
+				Mapper_PinSetA(MAIN_PinGetAB());
+				//MAIN_PinSetDB(Mapper_PinGetD());
 				break;
 		}
 	}
@@ -722,7 +773,7 @@ int main(int argc,char**argv)
 	double	atStart,now,remain;
 	uint16_t bp;
 
-	if (LoadRom(Rom,argv[1]))
+	if (LoadRom(argv[1]))
 	{
 		return 1;
 	}
