@@ -29,17 +29,14 @@ HANDLER A	ALWAYS
 		IF A==$1FF8
 		{
 			bank<-0;
-			DEBUG_TRACE "Switching Bank - ",bank;
 		}
 		IF A==$1FF9
 		{
 			bank<-1;
-			DEBUG_TRACE "Switching Bank - ",bank;
 		}
 		IF A==$1FFA
 		{
 			bank<-2;
-			DEBUG_TRACE "Switching Bank - ",bank;
 		}
 
 		IF A>=$1200
@@ -59,13 +56,11 @@ HANDLER A	ALWAYS
 		}
 		IF (A>=$1000) & (A<=$10FF)
 		{
-			DEBUG_TRACE "Write Ram",BASE 16,addr,D;
 			RAM[[addr]]<-D;
 		}
 		IF (A>=$1100) & (A<=$11FF)
 		{
 			D<-RAM[[addr]];
-			DEBUG_TRACE "Read Ram",BASE 16,addr,D;
 		}
 	}
 }

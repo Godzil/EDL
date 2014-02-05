@@ -46,12 +46,33 @@ out/16k.lls: carts/16k.edl
 out/16k.lls.s: out/16k.lls
 	llc -O3 out/16k.lls
 
+out/16kSC.lls: carts/16kSC.edl
+	mkdir -p out
+	$(EDL) -O2 -s CART16KSC_ carts/16kSC.edl >out/16kSC.lls
+
+out/16kSC.lls.s: out/16kSC.lls
+	llc -O3 out/16kSC.lls
+
 out/32k.lls: carts/32k.edl
 	mkdir -p out
 	$(EDL) -O2 -s CART32K_ carts/32k.edl >out/32k.lls
 
 out/32k.lls.s: out/32k.lls
 	llc -O3 out/32k.lls
+
+out/32k3F.lls: carts/32k3F.edl
+	mkdir -p out
+	$(EDL) -O2 -s CART32K3F_ carts/32k3F.edl >out/32k3F.lls
+
+out/32k3F.lls.s: out/32k3F.lls
+	llc -O3 out/32k3F.lls
+
+out/32kSC.lls: carts/32kSC.edl
+	mkdir -p out
+	$(EDL) -O2 -s CART32KSC_ carts/32kSC.edl >out/32kSC.lls
+
+out/32kSC.lls.s: out/32kSC.lls
+	llc -O3 out/32kSC.lls
 
 # 2600
 
@@ -76,5 +97,5 @@ out/m6507_main.lls: ../../chips/Accurate/m6507.edl
 out/m6507_main.lls.s: out/m6507_main.lls
 	llc -O3 out/m6507_main.lls
 
-2600: 2600.c CartIdent.c CartIdent.h out/m6507_main.lls.s out/tia_ntsc.lls.s out/m6532.lls.s out/2k.lls.s out/4k.lls.s out/8k.lls.s out/12k.lls.s out/16k.lls.s out/32k.lls.s
-	gcc -O3 -g 2600.c CartIdent.c out/m6507_main.lls.s out/tia_ntsc.lls.s out/m6532.lls.s out/2k.lls.s out/4k.lls.s out/8k.lls.s out/12k.lls.s out/16k.lls.s out/32k.lls.s $(ALLIBS) $(GLLIBS) -o 2600.exe
+2600: 2600.c CartIdent.c CartIdent.h out/m6507_main.lls.s out/tia_ntsc.lls.s out/m6532.lls.s out/2k.lls.s out/4k.lls.s out/8k.lls.s out/12k.lls.s out/16k.lls.s out/16kSC.lls.s out/32k.lls.s out/32k3F.lls.s out/32kSC.lls.s
+	gcc -O3 -g 2600.c CartIdent.c out/m6507_main.lls.s out/tia_ntsc.lls.s out/m6532.lls.s out/2k.lls.s out/4k.lls.s out/8k.lls.s out/12k.lls.s out/16k.lls.s out/16kSC.lls.s out/32k.lls.s out/32K3F.lls.s out/32kSC.lls.s $(ALLIBS) $(GLLIBS) -o 2600.exe

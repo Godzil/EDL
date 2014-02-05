@@ -1,10 +1,10 @@
 #
 #
-# 32K Cart Atari 2600	(Standard Bank Switched Atari Cart)
+# 32K Cart Atari 2600	(Standard Bank Switched Atari Cart + SuperChip)
 #
 #	Pins reflect pins available on cartridge port from 2600
 #
-#	8 4K Roms + Bank Register + Address Watch
+#	8 4K Roms + Bank Register + Address Watch + 128 bytes RAM
 #
 #  Note roms are handled as single large rom to keep logic to a minimum
 #
@@ -18,6 +18,8 @@ PIN BIDIRECTIONAL	D[8];							# Data BUS
 
 DECLARE	ROM[[15]][8];
 
+DECLARE RAM[[7]][8];
+
 DECLARE INTERNAL bank[3];
 
 HANDLER A	ALWAYS
@@ -30,10 +32,23 @@ HANDLER A	ALWAYS
 		{
 			bank<-(A[0..2]) ^ %100;		# 4 = %100 .....
 		}
-		bk<-bank;
-		ad<-addr;
+
+		IF (A>=$1100)
+		{
+			bk<-bank;
+			ad<-addr;
 			
-		D<-ROM[[linear]];
+			D<-ROM[[linear]];
+		}
+		IF (A>=$1000) & (A<=$107F)
+		{
+			RAM[[addr]]<-D;
+		}
+		IF (A>=$1080) & (A<=$10FF)
+		{
+			D<-RAM[[addr]];
+		}
+
 	}
 }
 
@@ -56,8 +71,16 @@ FUNCTION	byte[8]	GetDebugByte	offs[32]
 {
 	DECLARE linear[15]	ALIAS	bk[3]:ad[12];
 
-	bk<-bank;
-	ad<-offs;
+	IF offs>=$1100
+	{
+		bk<-bank;
+		ad<-offs;
 		
-	byte<-ROM[[linear]];
+		byte<-ROM[[linear]];
+	}
+	IF (offs>=$1080) & (offs<=$10FF)
+	{
+		byte<-RAM[[offs]];
+	}
 }
+

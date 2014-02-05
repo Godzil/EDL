@@ -59,11 +59,29 @@ uint8_t CART16K_PinGetD();
 void	CART16K_PinSetD(uint8_t);
 void	CART16K_PinSetA(uint16_t);
 
+uint8_t CART16KSC_LoadRom(uint32_t addr,uint8_t byte);
+uint8_t CART16KSC_GetDebugByte(uint32_t addr);
+uint8_t CART16KSC_PinGetD();
+void	CART16KSC_PinSetD(uint8_t);
+void	CART16KSC_PinSetA(uint16_t);
+
 uint8_t CART32K_LoadRom(uint32_t addr,uint8_t byte);
 uint8_t CART32K_GetDebugByte(uint32_t addr);
 uint8_t CART32K_PinGetD();
 void	CART32K_PinSetD(uint8_t);
 void	CART32K_PinSetA(uint16_t);
+
+uint8_t CART32K3F_LoadRom(uint32_t addr,uint8_t byte);
+uint8_t CART32K3F_GetDebugByte(uint32_t addr);
+uint8_t CART32K3F_PinGetD();
+void	CART32K3F_PinSetD(uint8_t);
+void	CART32K3F_PinSetA(uint16_t);
+
+uint8_t CART32KSC_LoadRom(uint32_t addr,uint8_t byte);
+uint8_t CART32KSC_GetDebugByte(uint32_t addr);
+uint8_t CART32KSC_PinGetD();
+void	CART32KSC_PinSetD(uint8_t);
+void	CART32KSC_PinSetA(uint16_t);
 
 uint8_t (*Mapper_LoadRom)(uint32_t addr,uint8_t byte)=NULL;
 uint8_t (*Mapper_GetDebugByte)(uint32_t addr)=NULL;
@@ -140,6 +158,15 @@ int EnableMapper(const char* cc4)
 		Mapper_PinSetA=CART16K_PinSetA;
 		return 0;
 	}
+	if (strcmp("16KSC",cc4)==0)
+	{
+		Mapper_LoadRom=CART16KSC_LoadRom;
+		Mapper_GetDebugByte=CART16KSC_GetDebugByte;
+		Mapper_PinGetD=CART16KSC_PinGetD;
+		Mapper_PinSetD=CART16KSC_PinSetD;
+		Mapper_PinSetA=CART16KSC_PinSetA;
+		return 0;
+	}
 	if (strcmp("32K",cc4)==0)
 	{
 		Mapper_LoadRom=CART32K_LoadRom;
@@ -147,6 +174,24 @@ int EnableMapper(const char* cc4)
 		Mapper_PinGetD=CART32K_PinGetD;
 		Mapper_PinSetD=CART32K_PinSetD;
 		Mapper_PinSetA=CART32K_PinSetA;
+		return 0;
+	}
+	if (strcmp("32K3F",cc4)==0)
+	{
+		Mapper_LoadRom=CART32K3F_LoadRom;
+		Mapper_GetDebugByte=CART32K3F_GetDebugByte;
+		Mapper_PinGetD=CART32K3F_PinGetD;
+		Mapper_PinSetD=CART32K3F_PinSetD;
+		Mapper_PinSetA=CART32K3F_PinSetA;
+		return 0;
+	}
+	if (strcmp("32KSC",cc4)==0)
+	{
+		Mapper_LoadRom=CART32KSC_LoadRom;
+		Mapper_GetDebugByte=CART32KSC_GetDebugByte;
+		Mapper_PinGetD=CART32KSC_PinGetD;
+		Mapper_PinSetD=CART32KSC_PinSetD;
+		Mapper_PinSetA=CART32KSC_PinSetA;
 		return 0;
 	}
 	return 1;
@@ -233,18 +278,7 @@ int InitialiseMemory()
 	return 0;
 }
 
-int doDebug=1;
-
-// MMAP - apparantly
-// ROM - A12 = 1
-// TIA - A12 = 0 & A7 = 0
-// RAM - A12 = 0 & A7 = 1 & A9 = 0		A9 = RS signal to RIOT
-// RIOT - A12 = 0 & A7 = 1 & A9 = 1
-
-//	12 11 10 9 8 7 6 5 4 3 2 1 0
-//	1  0  0  1 0 1 0 0 0 0 0 0 0
-	
-//	0x1280
+int doDebug=0;
 
 uint8_t GetByteDebugger(uint16_t addr)
 {
@@ -669,12 +703,12 @@ void DoCPU()
 			case 0x1080:
 			case 0x1200:
 			case 0x1280:
-				// May need to adjust in future (since technically the cart sees all addresses!)
-				Mapper_PinSetD(MAIN_PinGetDB());
-				Mapper_PinSetA(MAIN_PinGetAB());
-				MAIN_PinSetDB(Mapper_PinGetD());
 				break;
 		}
+		// May need to adjust in future (since technically the cart sees all addresses!)
+		Mapper_PinSetD(MAIN_PinGetDB());
+		Mapper_PinSetA(MAIN_PinGetAB());
+		MAIN_PinSetDB(Mapper_PinGetD());
 	}
 	if (!MAIN_PinGetRW())
 	{
@@ -696,12 +730,12 @@ void DoCPU()
 			case 0x1080:
 			case 0x1200:
 			case 0x1280:
-				// May need to adjust in future (since technically the cart sees all addresses!)
-				Mapper_PinSetD(MAIN_PinGetDB());
-				Mapper_PinSetA(MAIN_PinGetAB());
-				//MAIN_PinSetDB(Mapper_PinGetD());
 				break;
 		}
+		// May need to adjust in future (since technically the cart sees all addresses!)
+		Mapper_PinSetD(MAIN_PinGetDB());
+		Mapper_PinSetA(MAIN_PinGetAB());
+		//MAIN_PinSetDB(Mapper_PinGetD());
 	}
 
 	if (lastO0==0 && curO0==1)

@@ -218,6 +218,27 @@ int isProbably0840(const uint8_t* image, uint32_t size)
 	return 0;
 }
 
+int isProbablyDPCplus(const uint8_t* image, uint32_t size)
+{
+	// DPC+ ARM code has 2 occurrences of the string DPC+
+	uint8_t signature[] = { 'D', 'P', 'C', '+' };
+	return searchForBytes(image, size, signature, 4, 2);
+}
+
+int isProbablyFA2(const uint8_t* image, uint32_t size)
+{
+	// This currently tests only the 32K version of FA2; the 24 and 28K
+	// versions are easy, in that they're the only possibility with those
+	// file sizes
+
+	// 32K version has all zeros in 29K-32K area
+	uint32_t i;
+	for(i = 29*1024; i < 32*1024; ++i)
+		if(image[i] != 0)
+			return 0;
+
+	return 1;
+}
 
 ///
 
@@ -254,15 +275,15 @@ const char* CartIdentify(const uint8_t* rom,uint32_t size)
 		else if(memcmp(rom, rom + 4096, 4096) == 0)
 			return "4K";
 		else if(isProbablyE0(rom, size))
-			return "E08K";
+			return "8KE0";
 		else if(isProbably3E(rom, size))
-			return "3E8K";
+			return "8K3E";
 		else if(isProbably3F(rom, size))
-			return "3F8K";
+			return "8K3F";
 		else if(isProbablyUA(rom, size))
-			return "UA8K";
+			return "8KUA";
 		else if(isProbablyFE(rom, size) && !f8)
-			return "FE8K";
+			return "8KFE";
 		else if(isProbably0840(rom, size))
 			return "0840";
 		else
@@ -281,15 +302,32 @@ const char* CartIdentify(const uint8_t* rom,uint32_t size)
 		if(isProbablySC(rom, size))
 			return "16KSC";
 		else if(isProbablyE7(rom, size))
-			return "E7";
+			return "16KE7";
 		else if(isProbably3E(rom, size))
-			return "3E";
+			return "16K3E";
 		/* no known 16K 3F ROMS
 		   else if(isProbably3F(rom, size))
 		   type = "3F";
 		   */
 		else
 			return "16K";
+	}
+	if(size == 32768)
+	{
+		if(isProbablySC(rom, size))
+			return "32KSC";
+		else if(isProbably3E(rom, size))
+			return "32K3E";
+		else if(isProbably3F(rom, size))
+			return "32K3F";
+		else if(isProbablyDPCplus(rom, size))
+			return "DPC+";
+		/*else if(isProbablyCTY(rom, size))
+			return "CTY";*/
+		else if(isProbablyFA2(rom, size))
+			return "32KFA2";
+		else
+			return "32K";
 	}
 	return "";
 }
@@ -309,23 +347,6 @@ const char* CartIdentify(const uint8_t* rom,uint32_t size)
 ////      type = "FA2";
 ////    else /*if(isProbablyDPCplus(image, size))*/
 ////      type = "DPC+";
-////  }
-////  else if(size == 32*1024)  // 32K
-////  {
-////    if(isProbablySC(image, size))
-////      type = "F4SC";
-////    else if(isProbably3E(image, size))
-////      type = "3E";
-////    else if(isProbably3F(image, size))
-////      type = "3F";
-////    else if(isProbablyDPCplus(image, size))
-////      type = "DPC+";
-////    else if(isProbablyCTY(image, size))
-////      type = "CTY";
-////    else if(isProbablyFA2(image, size))
-////      type = "FA2";
-////    else
-////      type = "F4";
 ////  }
 ////  else if(size == 64*1024)  // 64K
 ////  {
