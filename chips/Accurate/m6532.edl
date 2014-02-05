@@ -1,10 +1,7 @@
 #
 # MOS 6532 (RIOT)
 #
-# Missing Interrupt flag read and edge detect. Everything else should be there.
-#
-#
-#
+# Missing edge detect. Everything else should be there.
 
 PIN IN			AD[7];		# Address bits
 PIN BIDIRECTIONAL	PA[8];		# Peripheral A
@@ -21,9 +18,12 @@ PIN IN			O2[1];		# Input Clock
 
 DECLARE		RAM[[7]][8];
 
-DECLARE		Counter[17] { %11111111111111111 };		# Timer with preScaler e.g. /1 = 0..7 /8 = 3..10 /64 = 6..13  /1024 = 10..17
+DECLARE		Counter[18]	ALIAS	CounterRW[8]:CounterRest[10]	{ %111111111111111111 };		# Timer with preScaler 
+DECLARE		CounterRate[18]						{ %000000010000000000 };
 
 DECLARE		TimerTypeLatch[2];
+DECLARE		ILatch[1];
+DECLARE		ELatch[1];
 
 DECLARE		DDRA[8];
 DECLARE		DDRB[8];
@@ -52,11 +52,16 @@ HANDLER	O2	TRANSITION(0,1)
 				{
 					IF AD[0..0]==0
 					{
-						EXECUTE ReadCounter TimerTypeLatch;
+						DB<-CounterRW;
+						ILatch<-0;
 					}
 					IF AD[0..0]==1
 					{
-						DEBUG_TRACE "RIOT - Read Interrupt Flag: ",BASE 16,AD;
+						DECLARE IFlag[8] ALIAS	i[1]:e[1]:%000000;
+						i<-ILatch;
+						e<-ELatch;
+						DB<-IFlag;
+						ELatch<-0;
 					}
 				} 
 			}
@@ -87,9 +92,9 @@ HANDLER	O2	TRANSITION(0,1)
 					{
 						TimerTypeLatch<-AD[2];
 
-						Counter<-0;
-						
 						EXECUTE LoadCounter TimerTypeLatch;
+
+						ILatch<-0;
 					}
 				}
 			}
@@ -99,14 +104,16 @@ HANDLER	O2	TRANSITION(0,1)
 
 HANDLER O2	TRANSITION(1,0)
 {
-	DECLARE tOver[1];
+	DECLARE	cRate[18];
+	cRate<-CounterRate;
 
-	AFFECT tOver AS CARRY(16) {Counter-1}->Counter;
-
-	IF tOver
+	IF ILatch
 	{
-		TimerTypeLatch<-0;	# Force read of /1 counter after underflow
-		#Set Interrupt
+		Counter-%000000010000000000->Counter;
+	}
+	IF ~ILatch
+	{
+		AFFECT ILatch AS CARRY(17) {Counter-CounterRate}->Counter;
 	}
 }
 
@@ -116,97 +123,67 @@ HANDLER O2	TRANSITION(1,0)
 INSTRUCTION ReadRegister	"RegA"	%00
 {
 	(PA&(~DDRA))|(DB&DDRA)->DB;
-#	DEBUG_TRACE "RIOT - Read Output Reg A",DB;
 }
 
 INSTRUCTION ReadRegister	"DDRA"	%01
 {
 	DDRA->DB;
-#	DEBUG_TRACE "RIOT - Read Output DDRA",DB;
 }
 
 INSTRUCTION ReadRegister	"RegB"	%10
 {
 	(PB&(~DDRB))|(DB&DDRB)->DB;
-#	DEBUG_TRACE "RIOT - Read Output Reg B",DB;
 }
 
 INSTRUCTION ReadRegister	"DDRB"	%11
 {
 	DDRB->DB;
-#	DEBUG_TRACE "RIOT - Read Output DDRB",DB;
 }
 
 INSTRUCTION WriteRegister	"RegA"	%00
 {
 	(PA&(~DDRA))|(DB&DDRA)->PA;
-#	DEBUG_TRACE "RIOT - Write Output Reg A",PA;
 }
 
 INSTRUCTION WriteRegister	"DDRA"	%01
 {
 	DB->DDRA;
-#	DEBUG_TRACE "RIOT - Write Output DDRA",DDRA;
 }
 
 INSTRUCTION WriteRegister	"RegB"	%10
 {
 	(PB&(~DDRB))|(DB&DDRB)->PB;
-#	DEBUG_TRACE "RIOT - Write Output Reg B",PB;
 }
 
 INSTRUCTION WriteRegister	"DDRB"	%11
 {
 	DB->DDRB;
-#	DEBUG_TRACE "RIOT - Write Output DDRB",DDRB;
 }
 
 INSTRUCTION LoadCounter	"/1"	%00
 {
-	DB->Counter[0..7];
-	#DEBUG_TRACE "RIOT - Timer Write /1";
+	DB->CounterRW;
+	%1111111111->CounterRest;
+	%000000010000000000->CounterRate;
 }
 
 INSTRUCTION LoadCounter	"/8"	%01
 {
-	DB->Counter[3..10];
-	#DEBUG_TRACE "RIOT - Timer Write /8";
+	DB->CounterRW;
+	%1111111111->CounterRest;
+	%000000000010000000->CounterRate;
 }
 
 INSTRUCTION LoadCounter	"/64"	%10
 {
-	DB->Counter[6..13];
-	#DEBUG_TRACE "RIOT - Timer Write /64";
+	DB->CounterRW;
+	%1111111111->CounterRest;
+	%000000000000010000->CounterRate;
 }
 
 INSTRUCTION LoadCounter	"/1024"	%11
 {
-	DB->Counter[10..17];
-	#DEBUG_TRACE "RIOT - Timer Write /1024";
+	DB->CounterRW;
+	%1111111111->CounterRest;
+	%000000000000000001->CounterRate;
 }
-
-INSTRUCTION ReadCounter	"/1"	%00
-{
-	DB<-Counter[0..7];
-	#DEBUG_TRACE "RIOT - Timer Read /1",DB;
-}
-
-INSTRUCTION ReadCounter	"/8"	%01
-{
-	DB<-Counter[3..10];
-	#DEBUG_TRACE "RIOT - Timer Read /8",DB;
-}
-
-INSTRUCTION ReadCounter	"/64"	%10
-{
-	DB<-Counter[6..13];
-	#DEBUG_TRACE "RIOT - Timer Read /64",DB;
-}
-
-INSTRUCTION ReadCounter	"/1024"	%11
-{
-	DB<-Counter[10..17];
-	#DEBUG_TRACE "RIOT - Timer Read /1024",DB;
-}
-
-
