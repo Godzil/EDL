@@ -20,6 +20,8 @@
 #include <string.h>
 #include <stdint.h>
 
+#include "CartIdent.h"
+
 void AudioKill();
 void AudioInitialise();
 void UpdateAudio();
@@ -44,6 +46,12 @@ uint8_t CART8K_GetDebugByte(uint32_t addr);
 uint8_t CART8K_PinGetD();
 void	CART8K_PinSetD(uint8_t);
 void	CART8K_PinSetA(uint16_t);
+
+uint8_t CART12K_LoadRom(uint32_t addr,uint8_t byte);
+uint8_t CART12K_GetDebugByte(uint32_t addr);
+uint8_t CART12K_PinGetD();
+void	CART12K_PinSetD(uint8_t);
+void	CART12K_PinSetA(uint16_t);
 
 uint8_t CART16K_LoadRom(uint32_t addr,uint8_t byte);
 uint8_t CART16K_GetDebugByte(uint32_t addr);
@@ -85,9 +93,9 @@ extern uint8_t RIOT_RAM[128];
 
 uint8_t MAIN_PinGetSYNC();	// just for debugging
 
-int IdentifyRomAndSetMapper(uint32_t size)
+int EnableMapper(const char* cc4)
 {
-	if (size==2048)
+	if (strcmp("2K",cc4)==0)
 	{
 		Mapper_LoadRom=CART2K_LoadRom;
 		Mapper_GetDebugByte=CART2K_GetDebugByte;
@@ -96,7 +104,7 @@ int IdentifyRomAndSetMapper(uint32_t size)
 		Mapper_PinSetA=CART2K_PinSetA;
 		return 0;
 	}
-	if (size==4096)
+	if (strcmp("4K",cc4)==0)
 	{
 		Mapper_LoadRom=CART4K_LoadRom;
 		Mapper_GetDebugByte=CART4K_GetDebugByte;
@@ -105,7 +113,7 @@ int IdentifyRomAndSetMapper(uint32_t size)
 		Mapper_PinSetA=CART4K_PinSetA;
 		return 0;
 	}
-	if (size==8192)
+	if (strcmp("8K",cc4)==0)
 	{
 		Mapper_LoadRom=CART8K_LoadRom;
 		Mapper_GetDebugByte=CART8K_GetDebugByte;
@@ -114,7 +122,16 @@ int IdentifyRomAndSetMapper(uint32_t size)
 		Mapper_PinSetA=CART8K_PinSetA;
 		return 0;
 	}
-	if (size==16384)
+	if (strcmp("12K",cc4)==0)		// CBS Ram Plus (3*4K + 256 bytes RAM)
+	{
+		Mapper_LoadRom=CART12K_LoadRom;
+		Mapper_GetDebugByte=CART12K_GetDebugByte;
+		Mapper_PinGetD=CART12K_PinGetD;
+		Mapper_PinSetD=CART12K_PinSetD;
+		Mapper_PinSetA=CART12K_PinSetA;
+		return 0;
+	}
+	if (strcmp("16K",cc4)==0)
 	{
 		Mapper_LoadRom=CART16K_LoadRom;
 		Mapper_GetDebugByte=CART16K_GetDebugByte;
@@ -123,7 +140,7 @@ int IdentifyRomAndSetMapper(uint32_t size)
 		Mapper_PinSetA=CART16K_PinSetA;
 		return 0;
 	}
-	if (size==32768)
+	if (strcmp("32K",cc4)==0)
 	{
 		Mapper_LoadRom=CART32K_LoadRom;
 		Mapper_GetDebugByte=CART32K_GetDebugByte;
@@ -132,7 +149,16 @@ int IdentifyRomAndSetMapper(uint32_t size)
 		Mapper_PinSetA=CART32K_PinSetA;
 		return 0;
 	}
+	return 1;
+}
 
+int IdentifyRomAndSetMapper(uint8_t* rom,uint32_t size)
+{
+	const char* cc4=CartIdentify(rom,size);
+
+	printf("Cart Seems To Be : %s\n",cc4);
+
+	return EnableMapper(cc4);
 }
 
 int LoadRom(const char* fname)
@@ -151,14 +177,21 @@ int LoadRom(const char* fname)
 	RomSize=size=ftell(inFile);
 	fseek(inFile,0,SEEK_SET);
 
-	// Identify cart size - should provide an overload
 
-	if (IdentifyRomAndSetMapper(RomSize))		// Will probably need MD5 in future - but we can allow overide via 2nd argument I guess
+	uint8_t *tAlloc=(uint8_t*)malloc(size);
+	fread(tAlloc,1,size,inFile);
+	fseek(inFile,0,SEEK_SET);
+
+	// Perform cartridge identification (also configures correct EDL chip for handling rom)
+
+	if (IdentifyRomAndSetMapper(tAlloc,RomSize))
 	{
 		printf("Unsupported rom size - try forcing mapper?\n");
+		free(tAlloc);
 		fclose(inFile);
 		return 1;
 	}
+	free(tAlloc);
 
 	while (size)
 	{

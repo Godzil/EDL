@@ -21,7 +21,7 @@ PIN IN			O2[1];		# Input Clock
 
 DECLARE		RAM[[7]][8];
 
-DECLARE		Counter[17];		# Timer with preScaler e.g. /1 = 0..7 /8 = 3..10 /64 = 6..13  /1024 = 10..17
+DECLARE		Counter[17] { %11111111111111111 };		# Timer with preScaler e.g. /1 = 0..7 /8 = 3..10 /64 = 6..13  /1024 = 10..17
 
 DECLARE		TimerTypeLatch[2];
 

@@ -444,13 +444,13 @@ INSTRUCTION	ReadRegister	"Dumped Inputs : %M0"		DUMPEDINPORTS
 	{
 		DUMPEDINPORTS->DB67[1..1];
 	}
-	DEBUG_TRACE "Read Dumped ",DB67;
+	#DEBUG_TRACE "Read Dumped ",DB67;
 }
 
 INSTRUCTION	ReadRegister	"Latched Inputs : %M0"		LATCHEDINPORTS
 {
 	LATCHEDINPORTS->DB67[1..1];
-	DEBUG_TRACE "Read Latch ",DB67;
+	#DEBUG_TRACE "Read Latch ",DB67;
 }
 
 ####### Write Register Handlers
@@ -560,7 +560,7 @@ INSTRUCTION	WriteRegister	"NUSIZ0"	%000100
 	(DB05[0..2])->NUSIZ0_P;
 	(DB05[4..5])->NUSIZ0_M;
 
-	DEBUG_TRACE "TIA : NUSIZ0 - --MM-PPP ",NUSIZ0_M,NUSIZ0_P;
+	#DEBUG_TRACE "TIA : NUSIZ0 - --MM-PPP ",NUSIZ0_M,NUSIZ0_P;
 }
 
 INSTRUCTION	WriteRegister	"NUSIZ1"	%000101
@@ -568,7 +568,7 @@ INSTRUCTION	WriteRegister	"NUSIZ1"	%000101
 	(DB05[0..2])->NUSIZ1_P;
 	(DB05[4..5])->NUSIZ1_M;
 
-	DEBUG_TRACE "TIA : NUSIZ1 - --MM-PPP ",NUSIZ1_M,NUSIZ1_P;
+	#DEBUG_TRACE "TIA : NUSIZ1 - --MM-PPP ",NUSIZ1_M,NUSIZ1_P;
 }
 
 INSTRUCTION	WriteRegister	"COLUP0"	%000110
@@ -655,7 +655,7 @@ INSTRUCTION	WriteRegister	"REFP0"		%001011
 	DB05[3..3]->REFP0[1..1];
 	DB05[3..3]->REFP0[2..2];
 
-	DEBUG_TRACE "TIA : REFP0 - ----r--- ",REFP0;
+	#DEBUG_TRACE "TIA : REFP0 - ----r--- ",REFP0;
 }
 
 INSTRUCTION	WriteRegister	"REFP1"		%001100
@@ -664,7 +664,7 @@ INSTRUCTION	WriteRegister	"REFP1"		%001100
 	DB05[3..3]->REFP1[1..1];
 	DB05[3..3]->REFP1[2..2];
 
-	DEBUG_TRACE "TIA : REFP1 - ----r--- ",REFP1;
+	#DEBUG_TRACE "TIA : REFP1 - ----r--- ",REFP1;
 }
 
 INSTRUCTION	WriteRegister	"PF0"	%001101
@@ -716,7 +716,7 @@ INSTRUCTION	WriteRegister	"RESP0"	%010000
 	Player0Reset<-1;
 	Pl0Div4<-0;
 
-	DEBUG_TRACE "TIA : RESP0 (strobe)";
+	#DEBUG_TRACE "TIA : RESP0 (strobe)";
 }
 
 INSTRUCTION	WriteRegister	"RESP1"	%010001
@@ -724,7 +724,7 @@ INSTRUCTION	WriteRegister	"RESP1"	%010001
 	Player1Reset<-1;
 	Pl1Div4<-0;
 
-	DEBUG_TRACE "TIA : RESP1 (strobe)";
+	#DEBUG_TRACE "TIA : RESP1 (strobe)";
 }
 
 INSTRUCTION	WriteRegister	"GRP0"	%011011
@@ -743,7 +743,7 @@ INSTRUCTION	WriteRegister	"GRP0"	%011011
 	GRP0[[6]]<-dbGlue[6..6];
 	GRP0[[7]]<-dbGlue[7..7];
 
-	DEBUG_TRACE "TIA : GRP0 xxxxxxxx",dbGlue;
+	#DEBUG_TRACE "TIA : GRP0 xxxxxxxx",dbGlue;
 }
 
 INSTRUCTION	WriteRegister	"GRP1"	%011100
@@ -762,7 +762,7 @@ INSTRUCTION	WriteRegister	"GRP1"	%011100
 	GRP1[[6]]<-dbGlue[6..6];
 	GRP1[[7]]<-dbGlue[7..7];
 
-	DEBUG_TRACE "TIA : GRP1 xxxxxxxx",dbGlue;
+	#DEBUG_TRACE "TIA : GRP1 xxxxxxxx",dbGlue;
 }
 
 INSTRUCTION	WriteRegister	"HMP0"	%100000
@@ -772,7 +772,7 @@ INSTRUCTION	WriteRegister	"HMP0"	%100000
 	DB67[0..0]->HMP0[2..2];
 	~(DB67[1..1])->HMP0[3..3];	# store inverted for simple counter
 
-	DEBUG_TRACE "TIA : HMP0 xxxx---- ",HMP0;
+	#DEBUG_TRACE "TIA : HMP0 xxxx---- ",HMP0;
 }
 
 INSTRUCTION	WriteRegister	"HMP1"	%100001
@@ -782,7 +782,7 @@ INSTRUCTION	WriteRegister	"HMP1"	%100001
 	DB67[0..0]->HMP1[2..2];
 	~(DB67[1..1])->HMP1[3..3];	# store inverted for simple counter
 
-	DEBUG_TRACE "TIA : HMP1 xxxx---- ",HMP1;
+	#DEBUG_TRACE "TIA : HMP1 xxxx---- ",HMP1;
 }
 
 INSTRUCTION	WriteRegister	"HMOVE"	%101010
@@ -793,7 +793,7 @@ INSTRUCTION	WriteRegister	"HMOVE"	%101010
 	HMOVECMP<-$F;	# Decrements until wrap then stops
 	HMOVECNTEN<-1;	# Enabled counter
 
-	DEBUG_TRACE "TIA : HMOVE (strobe)",HCounter;
+	#DEBUG_TRACE "TIA : HMOVE (strobe)",HCounter;
 }
 
 INSTRUCTION	WriteRegister	"HMCLR"	%101011
@@ -801,7 +801,7 @@ INSTRUCTION	WriteRegister	"HMCLR"	%101011
 	HMP0<-%1000;
 	HMP1<-%1000;
 
-	DEBUG_TRACE "TIA : HMCLR (strobe)";
+	#DEBUG_TRACE "TIA : HMCLR (strobe)";
 }
 
 ### Playfield
