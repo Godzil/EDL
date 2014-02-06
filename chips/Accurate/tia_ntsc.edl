@@ -115,14 +115,9 @@ DECLARE		CXBLPF[1];
 DECLARE		CXPPMM[2];
 
 
-DECLARE		AUDV0[4];
-DECLARE		AUDV1[4];
-
-DECLARE		AUDF0[5];
-DECLARE		AUDF1[5];
-
-DECLARE		AUDC0[4];
-DECLARE		AUDC1[4];
+DECLARE		AUDV[[1]][4];
+DECLARE		AUDF[[1]][5];
+DECLARE		AUDC[[1]][4];
 
 FUNCTION INTERNAL outCounter[6]	UpdatePolyCounter	inCounter[6]
 {
@@ -395,6 +390,220 @@ HANDLER O2	TRANSITION(0,1)
 			EXECUTE ReadRegister ra;
 		}
 	}
+}
+
+DECLARE freqDivider[[1]][6];
+DECLARE poly4[[1]][4]	{%1111,%1111};
+DECLARE poly5[[1]][5]	{%11111,%11111};
+DECLARE poly9[[1]][9]	{%111111111,%111111111};
+DECLARE pureToneCounter[[1]][8];
+DECLARE div3Counter[[1]][2];
+DECLARE pureTone[[1]][1];
+DECLARE outAudBit[[1]][1];
+
+DECLARE curChan[1];
+
+FUNCTION INTERNAL	TickChannel	chan[1]
+{
+	freqDivider[[chan]]<-freqDivider[[chan]]+1;
+	IF freqDivider[[chan]]>AUDF[[chan]]
+	{
+		DECLARE t[4];
+		freqDivider[[chan]]<-0;
+		curChan<-chan;
+		t<-AUDC[[chan]];
+
+		EXECUTE PolyUpdate t;
+
+		IF chan
+		{
+			AUD1<-AUDV[[chan]]*outAudBit[[chan]];
+		}
+		IF ~chan
+		{
+			AUD0<-AUDV[[chan]]*outAudBit[[chan]];
+		}
+	}
+}
+
+FUNCTION INTERNAL	TickAudio
+{
+	# Called twice per scan line
+	CALL TickChannel(0);
+	CALL TickChannel(1);
+}
+
+FUNCTION INTERNAL	o[1]	UpdatePoly4	chan[1]
+{
+	DECLARE i[1];
+	i<-(poly4[[curChan]][0..0]) ^ (poly4[[curChan]][1..1]);
+	ROR(poly4[[curChan]],o,i,1)->poly4[[curChan]];
+}
+
+FUNCTION INTERNAL	o[1]	UpdatePoly5	chan[1]
+{
+	DECLARE i[1];
+	i<-(poly5[[curChan]][0..0]) ^ (poly5[[curChan]][2..2]);
+	ROR(poly5[[curChan]],o,i,1)->poly5[[curChan]];
+}
+
+FUNCTION INTERNAL	o[1]	UpdatePoly9	chan[1]
+{
+	DECLARE i[1];
+	i<-(poly9[[curChan]][0..0]) ^ (poly9[[curChan]][4..4]);
+	ROR(poly9[[curChan]],o,i,1)->poly9[[curChan]];
+}
+
+FUNCTION INTERNAL	o[1]	UpdatePure	chan[1],div[8]
+{
+	pureToneCounter[[curChan]]<-pureToneCounter[[curChan]]+1;
+	o<-0;
+	IF pureToneCounter[[curChan]]>=div
+	{
+		pureToneCounter[[curChan]]<-0;
+		o<-1;
+	}
+}
+
+FUNCTION	TickDiv2	chan[1]
+{
+	pureTone[[chan]]<-pureTone[[chan]]^1;
+	outAudBit[[chan]]<-pureTone[[chan]];
+}
+
+FUNCTION	o[1]	TickDiv3	chan[1]
+{
+	div3Counter[[chan]]<-div3Counter[[chan]]+1;
+	o<-0;
+	IF div3Counter[[chan]]>1
+	{
+		div3Counter[[chan]]<-0;
+		o<-1;
+	}
+}
+
+FUNCTION	TickDiv15	chan[1]
+{
+	IF CALL UpdatePure(chan,15)
+	{
+		pureTone[[chan]]<-pureTone[[chan]]^1;
+		outAudBit[[chan]]<-pureTone[[chan]];
+	}
+}
+
+FUNCTION	TickDiv31	chan[1]
+{
+	IF pureTone[[chan]]
+	{
+		IF CALL UpdatePure(chan,18)
+		{
+			pureTone[[chan]]<-pureTone[[chan]]^1;
+			outAudBit[[chan]]<-pureTone[[chan]];
+		}
+	}
+	IF ~pureTone[[chan]]
+	{
+		IF CALL UpdatePure(chan,13)
+		{
+			pureTone[[chan]]<-pureTone[[chan]]^1;
+			outAudBit[[chan]]<-pureTone[[chan]];
+		}
+	}
+}
+
+
+####### Audio Updates
+
+INSTRUCTION	PolyUpdate	"SET1"		%0000
+{
+	outAudBit[[curChan]]<-1;
+}
+
+INSTRUCTION	PolyUpdate	"4 Bit Poly"	%0001
+{
+	outAudBit[[curChan]]<-CALL UpdatePoly4(curChan);
+}
+
+INSTRUCTION	PolyUpdate	"Div 15 - Pure"	%0010
+{
+	CALL TickDiv15(curChan);
+}
+
+INSTRUCTION	PolyUpdate	"Div 15 - Pure"	%0011
+{
+	CALL TickDiv15(curChan);
+}
+
+INSTRUCTION	PolyUpdate	"Div 2 - Pure" %0100
+{
+	CALL TickDiv2(curChan);
+}
+
+INSTRUCTION	PolyUpdate	"Div 2 - Pure" %0101
+{
+	CALL TickDiv2(curChan);
+}
+
+INSTRUCTION	PolyUpdate	"Div 31 - Pure"	%0110
+{
+	CALL TickDiv31(curChan);
+}
+
+INSTRUCTION	PolyUpdate	"5 Bit Poly"	%0111
+{
+	outAudBit[[curChan]]<-CALL UpdatePoly5(curChan);
+}
+
+INSTRUCTION	PolyUpdate	"9 Bit Poly"	%1000
+{
+	outAudBit[[curChan]]<-CALL UpdatePoly9(curChan);
+}
+
+INSTRUCTION	PolyUpdate	"5 Bit Poly"	%1001
+{
+	outAudBit[[curChan]]<-CALL UpdatePoly5(curChan);
+}
+
+INSTRUCTION	PolyUpdate	"Div 31 - Pure"	%1010
+{
+	CALL TickDiv31(curChan);
+}
+
+INSTRUCTION	PolyUpdate	"Set Last 4 1"	%1011
+{
+	%1111->poly4[[curChan]];
+	%1111->poly5[[curChan]][0..3];
+	%1111->poly9[[curChan]][0..3];
+	outAudBit[[curChan]]<-1;
+}
+
+INSTRUCTION	PolyUpdate	"Div 6 - Pure" %1100
+{
+	IF CALL TickDiv3(curChan)
+	{
+		CALL TickDiv2(curChan);
+	}
+}
+
+INSTRUCTION	PolyUpdate	"Div 6 - Pure" %1101
+{
+	IF CALL TickDiv3(curChan)
+	{
+		CALL TickDiv2(curChan);
+	}
+}
+
+INSTRUCTION	PolyUpdate	"Div 93 - Pure"	%1110
+{
+	IF CALL TickDiv3(curChan)
+	{
+		CALL TickDiv31(curChan);
+	}
+}
+
+INSTRUCTION	PolyUpdate	"5 Bit Poly"	%1111
+{
+	outAudBit[[curChan]]<-CALL UpdatePoly5(curChan);
 }
 
 ####### Read Register Handlers
@@ -824,44 +1033,44 @@ INSTRUCTION	WriteRegister	"HMCLR"	%101011
 
 INSTRUCTION	WriteRegister	"AUDV0"	%011001
 {
-	(DB05[0..3])->AUDV0;
+	(DB05[0..3])->AUDV[[0]];
 
-	DEBUG_TRACE "TIA : AUDV0 : ",AUDV0;
+#	DEBUG_TRACE "TIA : AUDV0 : ",AUDV[[0]];
 }
 
 INSTRUCTION	WriteRegister	"AUDV1"	%011010
 {
-	(DB05[0..3])->AUDV1;
+	(DB05[0..3])->AUDV[[1]];
 
-	DEBUG_TRACE "TIA : AUDV1 : ",AUDV1;
+#	DEBUG_TRACE "TIA : AUDV1 : ",AUDV[[1]];
 }
 
 INSTRUCTION	WriteRegister	"AUDC0"	%010101
 {
-	(DB05[0..3])->AUDC0;
+	(DB05[0..3])->AUDC[[0]];
 
-	DEBUG_TRACE "TIA : AUDC0 : ",AUDC0;
+#	DEBUG_TRACE "TIA : AUDC0 : ",AUDC[[0]];
 }
 
 INSTRUCTION	WriteRegister	"AUDC1"	%010110
 {
-	(DB05[0..3])->AUDC1;
+	(DB05[0..3])->AUDC[[1]];
 
-	DEBUG_TRACE "TIA : AUDC1 : ",AUDC1;
+#	DEBUG_TRACE "TIA : AUDC1 : ",AUDC[[1]];
 }
 
 INSTRUCTION	WriteRegister	"AUDF0"	%010111
 {
-	(DB05[0..4])->AUDF0;
+	(DB05[0..4])->AUDF[[0]];
 
-	DEBUG_TRACE "TIA : AUDF0 : ",AUDF0;
+#	DEBUG_TRACE "TIA : AUDF0 : ",AUDF[[0]];
 }
 
 INSTRUCTION	WriteRegister	"AUDF1"	%011000
 {
-	(DB05[0..4])->AUDF1;
+	(DB05[0..4])->AUDF[[1]];
 
-	DEBUG_TRACE "TIA : AUDF1 : ",AUDF1;
+#	DEBUG_TRACE "TIA : AUDF1 : ",AUDF[[1]];
 }
 
 
@@ -928,6 +1137,8 @@ INSTRUCTION	HClockLogic	"Center"	%101100
 {
 	pfMayMirror<-1;
 	pfIndex<-$1;
+
+	CALL TickAudio();
 }
 
 INSTRUCTION	HClockLogic	"HSYNC ON"	%111100
@@ -956,6 +1167,8 @@ INSTRUCTION	HClockLogic	"RESET"		%010100
 	pfIndex<-$15;
 	HReset<-1;
 	HMOVE<-0;
+
+	CALL TickAudio();
 }
 
 ######### Player0 Handlers

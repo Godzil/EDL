@@ -47,6 +47,12 @@ uint8_t CART8K_PinGetD();
 void	CART8K_PinSetD(uint8_t);
 void	CART8K_PinSetA(uint16_t);
 
+uint8_t CART8KE0_LoadRom(uint32_t addr,uint8_t byte);
+uint8_t CART8KE0_GetDebugByte(uint32_t addr);
+uint8_t CART8KE0_PinGetD();
+void	CART8KE0_PinSetD(uint8_t);
+void	CART8KE0_PinSetA(uint16_t);
+
 uint8_t CART12K_LoadRom(uint32_t addr,uint8_t byte);
 uint8_t CART12K_GetDebugByte(uint32_t addr);
 uint8_t CART12K_PinGetD();
@@ -138,6 +144,15 @@ int EnableMapper(const char* cc4)
 		Mapper_PinGetD=CART8K_PinGetD;
 		Mapper_PinSetD=CART8K_PinSetD;
 		Mapper_PinSetA=CART8K_PinSetA;
+		return 0;
+	}
+	if (strcmp("8KE0",cc4)==0)		// Parker bros
+	{
+		Mapper_LoadRom=CART8KE0_LoadRom;
+		Mapper_GetDebugByte=CART8KE0_GetDebugByte;
+		Mapper_PinGetD=CART8KE0_PinGetD;
+		Mapper_PinSetD=CART8KE0_PinSetD;
+		Mapper_PinSetA=CART8KE0_PinSetA;
 		return 0;
 	}
 	if (strcmp("12K",cc4)==0)		// CBS Ram Plus (3*4K + 256 bytes RAM)
@@ -900,7 +915,10 @@ int main(int argc,char**argv)
 
 			UpdateHardware();
 
+			_AudioAddData(0,TIA_PinGetAUD0());
+			_AudioAddData(1,TIA_PinGetAUD1());
 
+			UpdateAudio();
 		}
 
 
@@ -1033,7 +1051,7 @@ ALboolean ALFWShutdownOpenAL()
 
 int curPlayBuffer=0;
 
-#define BUFFER_LEN		(44100/50)
+#define BUFFER_LEN		(44100/60)
 
 BUFFER_FORMAT audioBuffer[BUFFER_LEN];
 int amountAdded=0;
@@ -1073,18 +1091,18 @@ int16_t currentDAC[4] = {0,0,0,0};
 
 void _AudioAddData(int channel,int16_t dacValue)
 {
-	currentDAC[channel]=dacValue;
+	currentDAC[channel]=dacValue<<10;	// 4 bit volume scaled up to 14 bit value
 }
 
 uint32_t tickCnt=0;
-uint32_t tickRate=((22152*4096)/(44100/50));
+uint32_t tickRate=((228*262*4096)/(44100/60));
 
 /* audio ticked at same clock as everything else... so need a step down */
 void UpdateAudio()
 {
 	tickCnt+=1*4096;
 	
-	if (tickCnt>=tickRate*50)
+	if (tickCnt>=tickRate*60)
 	{
 		tickCnt-=tickRate;
 
