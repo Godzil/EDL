@@ -12,8 +12,8 @@ PIN OUT 		LUM0[1];		# Luminance Output 0
 PIN OUT 		COL[4];			# Colour Output			- Analogue? For now its the colour index
 PIN IN			DEL[1];			# Colour Delay Input
 PIN IN			OSC[1];			# Clock Input
-PIN OUT 		AUD0[1];		# Audio Output			- Analogue
-PIN OUT			AUD1[1];		# Audio Output			- Analogue
+PIN OUT 		AUD0[4];		# Audio Output			- Analogue 0-15
+PIN OUT			AUD1[4];		# Audio Output			- Analogue 0-15
 PIN IN			DB05[6];		# Processor Data Bus Bits 0-5
 PIN IN			DI[4];			# "Dumped" inputs
 PIN IN			LI[2];			# Latched inputs
@@ -115,7 +115,14 @@ DECLARE		CXBLPF[1];
 DECLARE		CXPPMM[2];
 
 
-DECLARE		DBG_Counter[8];
+DECLARE		AUDV0[4];
+DECLARE		AUDV1[4];
+
+DECLARE		AUDF0[5];
+DECLARE		AUDF1[5];
+
+DECLARE		AUDC0[4];
+DECLARE		AUDC1[4];
 
 FUNCTION INTERNAL outCounter[6]	UpdatePolyCounter	inCounter[6]
 {
@@ -478,12 +485,12 @@ MAPPING TODOW[6]
 	%010010	""	$12;
 	%010011	""	$13;
 	%010100	""	$14;
-	%010101	""	$15;
-	%010110	""	$16;
-	%010111	""	$17;
-	%011000	""	$18;
-	%011001	""	$19;
-	%011010	""	$1A;
+#	%010101	""	$15;
+#	%010110	""	$16;
+#	%010111	""	$17;
+#	%011000	""	$18;
+#	%011001	""	$19;
+#	%011010	""	$1A;
 #	%011011	""	$1B;
 #	%011100	""	$1C;
 	%011101	""	$1D;
@@ -502,6 +509,10 @@ MAPPING TODOW[6]
 #	%101010	""	$2A;
 #	%101011	""	$2B;
 	%101100	""	$2C;
+}
+
+MAPPING UNCONNECTED[6]
+{
 	%101101	""	$2D;
 	%101110	""	$2E;
 	%101111	""	$2F;
@@ -525,7 +536,12 @@ MAPPING TODOW[6]
 
 INSTRUCTION	WriteRegister	"TODO"		TODOW
 {
-	DEBUG_TRACE "TIA : Unknown Register Write ",TODOW;
+	DEBUG_TRACE "TIA : Unknown Register Write ",BASE 16,TODOW;
+}
+
+INSTRUCTION	WriteRegister	"UNCONNECTED"	UNCONNECTED
+{
+#	DEBUG_TRACE "TIA : Unconnected Register Write ",BASE 16,UNCONNECTED;
 }
 
 INSTRUCTION	WriteRegister	"VSYNC"		%000000
@@ -803,6 +819,51 @@ INSTRUCTION	WriteRegister	"HMCLR"	%101011
 
 	#DEBUG_TRACE "TIA : HMCLR (strobe)";
 }
+
+## Audio Block
+
+INSTRUCTION	WriteRegister	"AUDV0"	%011001
+{
+	(DB05[0..3])->AUDV0;
+
+	DEBUG_TRACE "TIA : AUDV0 : ",AUDV0;
+}
+
+INSTRUCTION	WriteRegister	"AUDV1"	%011010
+{
+	(DB05[0..3])->AUDV1;
+
+	DEBUG_TRACE "TIA : AUDV1 : ",AUDV1;
+}
+
+INSTRUCTION	WriteRegister	"AUDC0"	%010101
+{
+	(DB05[0..3])->AUDC0;
+
+	DEBUG_TRACE "TIA : AUDC0 : ",AUDC0;
+}
+
+INSTRUCTION	WriteRegister	"AUDC1"	%010110
+{
+	(DB05[0..3])->AUDC1;
+
+	DEBUG_TRACE "TIA : AUDC1 : ",AUDC1;
+}
+
+INSTRUCTION	WriteRegister	"AUDF0"	%010111
+{
+	(DB05[0..4])->AUDF0;
+
+	DEBUG_TRACE "TIA : AUDF0 : ",AUDF0;
+}
+
+INSTRUCTION	WriteRegister	"AUDF1"	%011000
+{
+	(DB05[0..4])->AUDF1;
+
+	DEBUG_TRACE "TIA : AUDF1 : ",AUDF1;
+}
+
 
 ### Playfield
 
