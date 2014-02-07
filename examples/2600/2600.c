@@ -897,8 +897,6 @@ int main(int argc,char**argv)
 	
 	while (!glfwGetKey(windows[MAIN_WINDOW],GLFW_KEY_ESCAPE))
 	{
-		static uint8_t lastPb0=0xff;
-		
 		if ((!stopTheClock) || g_traceStep || g_instructionStep)
 		{
 			TIA_PinSetOSC(1);
