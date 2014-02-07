@@ -968,7 +968,7 @@ int main(int argc,char**argv)
 
 			remain = now-atStart;
 
-			while ((remain<0.02f) && normalSpeed && !stopTheClock)
+			while ((remain<(1/60.0f)) && normalSpeed && !stopTheClock)
 			{
 				now=glfwGetTime();
 
@@ -1089,18 +1089,33 @@ int16_t currentDAC[4] = {0,0,0,0};
 
 void _AudioAddData(int channel,int16_t dacValue)
 {
-	currentDAC[channel]=dacValue<<10;	// 4 bit volume scaled up to 14 bit value
+	int16_t dac=(dacValue-8)<<10;
+	if (currentDAC[channel]<dac)
+	{
+		currentDAC[channel]+=1<<4;
+	}
+	if (currentDAC[channel]>dac)
+	{
+		currentDAC[channel]-=1<<4;
+	}
+
+//	currentDAC[channel]=dacValue<<10;	// 4 bit volume scaled up to 14 bit value
 }
 
 uint32_t tickCnt=0;
 uint32_t tickRate=((228*262*4096)/(44100/60));
+
+#define WRITE_AUDIO	1
+#if WRITE_AUDIO
+FILE* poop=NULL;
+#endif
 
 /* audio ticked at same clock as everything else... so need a step down */
 void UpdateAudio()
 {
 	tickCnt+=1*4096;
 	
-	if (tickCnt>=tickRate*60)
+	if (tickCnt>=tickRate)
 	{
 		tickCnt-=tickRate;
 
@@ -1110,8 +1125,17 @@ void UpdateAudio()
 
 			res+=currentDAC[0];
 			res+=currentDAC[1];
-			res+=currentDAC[2];
-			res+=currentDAC[3];
+#if WRITE_AUDIO
+			if (!poop)
+			{
+				poop=fopen("out.raw","wb");
+			}
+
+			fwrite(&currentDAC[0],2,1,poop);
+			fwrite(&currentDAC[1],2,1,poop);
+#endif
+			//res+=currentDAC[2];
+			//res+=currentDAC[3];
 
 			audioBuffer[amountAdded]=res>>BUFFER_FORMAT_SHIFT;
 			amountAdded++;
