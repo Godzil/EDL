@@ -1104,16 +1104,18 @@ int16_t currentDAC[4] = {0,0,0,0};
 void _AudioAddData(int channel,int16_t dacValue)
 {
 	int16_t dac=(dacValue-8)<<10;
+#if 1
 	if (currentDAC[channel]<dac)
 	{
-		currentDAC[channel]+=1<<2;
+		currentDAC[channel]+=1<<4;
 	}
 	if (currentDAC[channel]>dac)
 	{
-		currentDAC[channel]-=1<<2;
+		currentDAC[channel]-=1<<4;
 	}
-
-//	currentDAC[channel]=dacValue<<10;	// 4 bit volume scaled up to 14 bit value
+#else
+	currentDAC[channel]=dac;
+#endif
 }
 
 uint32_t tickCnt=0;
