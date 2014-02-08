@@ -24,6 +24,7 @@
 
 void AudioKill();
 void AudioInitialise();
+void ClockAudio();
 void UpdateAudio();
 void _AudioAddData(int channel,int16_t dacValue);
 
@@ -916,7 +917,7 @@ int main(int argc,char**argv)
 			_AudioAddData(0,TIA_PinGetAUD0());
 			_AudioAddData(1,TIA_PinGetAUD1());
 
-			UpdateAudio();
+			ClockAudio();
 		}
 
 
@@ -926,6 +927,7 @@ int main(int argc,char**argv)
 
 			if (pixelClock>=(228*262))
 			{
+				UpdateAudio();
 				pixelClock-=228*262;
 			}
 			else
@@ -986,7 +988,7 @@ int main(int argc,char**argv)
 
 //////////////////////// NOISES //////////////////////////
 
-#define NUMBUFFERS            (2)				/* living dangerously*/
+#define NUMBUFFERS            (4)				/* living dangerously*/
 
 ALuint		  uiBuffers[NUMBUFFERS];
 ALuint		  uiSource;
@@ -1034,7 +1036,7 @@ ALboolean ALFWShutdownOpenAL()
 #if 0/*USE_8BIT_OUTPUT*/
 
 #define AL_FORMAT						(AL_FORMAT_MONO8)
-#define BUFFER_FORMAT				U8
+#define BUFFER_FORMAT				uint8_t
 #define BUFFER_FORMAT_SIZE	(1)
 #define BUFFER_FORMAT_SHIFT	(8)
 
@@ -1049,30 +1051,42 @@ ALboolean ALFWShutdownOpenAL()
 
 int curPlayBuffer=0;
 
+#define NUM_SRC_BUFFERS		4
 #define BUFFER_LEN		(44100/60)
 
-BUFFER_FORMAT audioBuffer[BUFFER_LEN];
+BUFFER_FORMAT audioBuffer[NUM_SRC_BUFFERS][BUFFER_LEN];
+int audioBufferFull[NUM_SRC_BUFFERS];
+int numBufferFull=0;
+ALuint bufferFree[NUMBUFFERS];
+int numBufferFree=0;
+
+int curAudioBuffer=0;
+int firstUsedBuffer=0;
 int amountAdded=0;
 
 void AudioInitialise()
 {
-	int a=0;
-	for (a=0;a<BUFFER_LEN;a++)
+	int a=0,b;
+	for (b=0;b<NUM_SRC_BUFFERS;b++)
 	{
-		audioBuffer[a]=0;
+		for (a=0;a<BUFFER_LEN;a++)
+		{
+			audioBuffer[b][a]=0;
+		}
+		audioBufferFull[b]=NUM_SRC_BUFFERS;
 	}
 
 	ALFWInitOpenAL();
 
-  /* Generate some AL Buffers for streaming */
+	/* Generate some AL Buffers for streaming */
 	alGenBuffers( NUMBUFFERS, uiBuffers );
 
 	/* Generate a Source to playback the Buffers */
-  alGenSources( 1, &uiSource );
+	alGenSources( 1, &uiSource );
 
 	for (a=0;a<NUMBUFFERS;a++)
 	{
-		alBufferData(uiBuffers[a], AL_FORMAT, audioBuffer, BUFFER_LEN*BUFFER_FORMAT_SIZE, 44100);
+		alBufferData(uiBuffers[a], AL_FORMAT, audioBuffer[0], BUFFER_LEN*BUFFER_FORMAT_SIZE, 44100);
 		alSourceQueueBuffers(uiSource, 1, &uiBuffers[a]);
 	}
 
@@ -1092,26 +1106,26 @@ void _AudioAddData(int channel,int16_t dacValue)
 	int16_t dac=(dacValue-8)<<10;
 	if (currentDAC[channel]<dac)
 	{
-		currentDAC[channel]+=1<<4;
+		currentDAC[channel]+=1<<2;
 	}
 	if (currentDAC[channel]>dac)
 	{
-		currentDAC[channel]-=1<<4;
+		currentDAC[channel]-=1<<2;
 	}
 
 //	currentDAC[channel]=dacValue<<10;	// 4 bit volume scaled up to 14 bit value
 }
 
 uint32_t tickCnt=0;
-uint32_t tickRate=((228*262*4096)/(44100/60));
+uint32_t tickRate=((228*262*4096)/(BUFFER_LEN));
 
-#define WRITE_AUDIO	1
+#define WRITE_AUDIO	0
 #if WRITE_AUDIO
 FILE* poop=NULL;
 #endif
 
 /* audio ticked at same clock as everything else... so need a step down */
-void UpdateAudio()
+void ClockAudio()
 {
 	tickCnt+=1*4096;
 	
@@ -1119,47 +1133,71 @@ void UpdateAudio()
 	{
 		tickCnt-=tickRate;
 
-		if (amountAdded!=BUFFER_LEN)
-		{
-			int32_t res=0;
+		int32_t res=0;
 
-			res+=currentDAC[0];
-			res+=currentDAC[1];
+		res+=currentDAC[0];
+		res+=currentDAC[1];
 #if WRITE_AUDIO
-			if (!poop)
-			{
-				poop=fopen("out.raw","wb");
-			}
+		if (!poop)
+		{
+			poop=fopen("out.raw","wb");
+		}
 
-			fwrite(&currentDAC[0],2,1,poop);
-			fwrite(&currentDAC[1],2,1,poop);
+		fwrite(&currentDAC[0],2,1,poop);
+		fwrite(&currentDAC[1],2,1,poop);
 #endif
-			//res+=currentDAC[2];
-			//res+=currentDAC[3];
+		//res+=currentDAC[2];
+		//res+=currentDAC[3];
 
-			audioBuffer[amountAdded]=res>>BUFFER_FORMAT_SHIFT;
-			amountAdded++;
+		audioBuffer[curAudioBuffer][amountAdded]=res>>BUFFER_FORMAT_SHIFT;
+		amountAdded++;
+		
+		if (amountAdded==BUFFER_LEN)
+		{
+			audioBufferFull[numBufferFull]=curAudioBuffer;
+			numBufferFull++;
+			curAudioBuffer++;
+			curAudioBuffer%=NUM_SRC_BUFFERS;
+			if (numBufferFull==NUM_SRC_BUFFERS)
+			{
+				printf("Src Buffer Overrun - \n");
+				numBufferFull--;
+			}
+			amountAdded=0;
 		}
 	}
+}
 
-	if (amountAdded==BUFFER_LEN)
+void UpdateAudio()
+{
+	if (numBufferFull)
 	{
-		/* 1 second has passed by */
-
+		int a;
 		ALint processed;
 		ALint state;
-		alGetSourcei(uiSource, AL_SOURCE_STATE, &state);
 		alGetSourcei(uiSource, AL_BUFFERS_PROCESSED, &processed);
-		if (processed>0)
+
+		while (processed>0)
 		{
 			ALuint buffer;
 
 			amountAdded=0;
-			alSourceUnqueueBuffers(uiSource,1, &buffer);
-			alBufferData(buffer, AL_FORMAT, audioBuffer, BUFFER_LEN*BUFFER_FORMAT_SIZE, 44100);
-			alSourceQueueBuffers(uiSource, 1, &buffer);
+			alSourceUnqueueBuffers(uiSource,1, &bufferFree[numBufferFree++]);
+			processed--;
 		}
 
+		while (numBufferFree && numBufferFull)
+		{
+			alBufferData(bufferFree[--numBufferFree], AL_FORMAT, audioBuffer[audioBufferFull[0]], BUFFER_LEN*BUFFER_FORMAT_SIZE, 44100);
+			alSourceQueueBuffers(uiSource, 1, &bufferFree[numBufferFree]);
+			for (a=1;a<numBufferFull;a++)
+			{
+				audioBufferFull[a-1]=audioBufferFull[a];
+			}
+			numBufferFull--;
+		}
+
+		alGetSourcei(uiSource, AL_SOURCE_STATE, &state);
 		if (state!=AL_PLAYING)
 		{
 			alSourcePlay(uiSource);
