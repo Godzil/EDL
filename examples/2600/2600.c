@@ -462,7 +462,7 @@ int dumpInstruction=0;
 int g_instructionStep=0;
 int g_traceStep=0;
 
-#define HEIGHT	(262)
+#define HEIGHT	(312)
 #define	WIDTH	(228)
 
 #define MAX_WINDOWS		(1)
@@ -772,6 +772,32 @@ void DoCPU()
 	lastO0=curO0;
 }
 
+// NTSC
+// Main Clock = 3.58Mhz
+// CPU Clock = 1.19Mhz		(Main/3)
+
+// TIA has 228 clocks per line	* 262 * 60 = ~3.58
+//
+// 
+
+// PAL 228 clocks per line * 312 * 50 = ~xx
+
+#define PAL_MODE	0
+
+#if PAL_MODE
+
+#define LINES_PER_FRAME		(312)
+#define FRAMES_PER_SECOND	(50)
+
+#else
+
+#define LINES_PER_FRAME		(262)
+#define FRAMES_PER_SECOND	(60)
+
+#endif
+
+#define CLOCKS_PER_FRAME	(LINES_PER_FRAME*228)
+
 uint32_t quickPalette[8*16]={
 			 0x00000000,0x00222222,0x00444444,0x00666666,0x00888888,0x00AAAAAA,0x00CCCCCC,0x00EEEEEE 
 			,0x000A1800,0x002C3A00,0x004E5C00,0x00707E00,0x0092A000,0x00B4C213,0x00D6E435,0x00F8FF57 
@@ -794,9 +820,9 @@ uint32_t quickPalette[8*16]={
 
 
 // If sync lasts at least 300 clocks, wait for sync end, and thats the start of first line. If sync<300 assume HSYNC -- crude but will work for now
-void DummyNTSCTV()
+void DummyTV()
 {
-	static int curScan=0;		// (we have 228 pixels of screen space for a line, 262 lines for a display
+	static int curScan=0;		// (we have 228 pixels of screen space for a line, xxx lines for a display
 	static int curPos=0;
 	static int syncCounter=0;
 
@@ -826,7 +852,7 @@ void DummyNTSCTV()
 		syncCounter=0;
 
 //#enforced blank
-		if ((curScan>37) && (curScan<262) && (curPos<228))
+		if ((curScan>37) && (curScan<LINES_PER_FRAME) && (curPos<228))
 		{
 			uint32_t* outputTexture = (uint32_t*)(videoMemory[MAIN_WINDOW]);
 	
@@ -843,13 +869,6 @@ void DummyNTSCTV()
 }
 
 
-// NTSC
-// Main Clock = 3.58Mhz
-// CPU Clock = 1.19Mhz		(Main/3)
-
-// TIA has 228 clocks per line	* 262 * 60 = ~3.58
-//
-// 
 int main(int argc,char**argv)
 {
 	int w,h;
@@ -908,7 +927,7 @@ int main(int argc,char**argv)
 			
 			DoCPU();
 
-			DummyNTSCTV();
+			DummyTV();
 
 			pixelClock++;
 
@@ -921,14 +940,14 @@ int main(int argc,char**argv)
 		}
 
 
-		if (pixelClock>=(228*262) || stopTheClock)
+		if (pixelClock>=(CLOCKS_PER_FRAME) || stopTheClock)
 		{
 			static int normalSpeed=1;
 
-			if (pixelClock>=(228*262))
+			if (pixelClock>=(CLOCKS_PER_FRAME))
 			{
 				UpdateAudio();
-				pixelClock-=228*262;
+				pixelClock-=CLOCKS_PER_FRAME;
 			}
 			else
 			{
@@ -970,7 +989,7 @@ int main(int argc,char**argv)
 
 			remain = now-atStart;
 
-			while ((remain<(1/60.0f)) && normalSpeed && !stopTheClock)
+			while ((remain<(1.0f/FRAMES_PER_SECOND)) && normalSpeed && !stopTheClock)
 			{
 				now=glfwGetTime();
 
@@ -1052,7 +1071,7 @@ ALboolean ALFWShutdownOpenAL()
 int curPlayBuffer=0;
 
 #define NUM_SRC_BUFFERS		4
-#define BUFFER_LEN		(44100/60)
+#define BUFFER_LEN		(44100/FRAMES_PER_SECOND)
 
 BUFFER_FORMAT audioBuffer[NUM_SRC_BUFFERS][BUFFER_LEN];
 int audioBufferFull[NUM_SRC_BUFFERS];
@@ -1119,7 +1138,7 @@ void _AudioAddData(int channel,int16_t dacValue)
 }
 
 uint32_t tickCnt=0;
-uint32_t tickRate=((228*262*4096)/(BUFFER_LEN));
+uint32_t tickRate=((CLOCKS_PER_FRAME*4096)/(BUFFER_LEN));
 
 #define WRITE_AUDIO	0
 #if WRITE_AUDIO
