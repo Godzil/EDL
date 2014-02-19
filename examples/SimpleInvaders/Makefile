@@ -1,7 +1,7 @@
 all: invaders
 
-GLLIBS= -I../../../glfw-3.0.4/include -L../../../glfw-3.0.4/lib-mingw -lglfw3 -lglu32 -lopengl32 -lGDI32
-EDL=../../bin/edl.exe
+GLLIBS= `pkg-config --libs glfw3` -lGL -lGLU -lm `pkg-config --cflags glfw3`
+EDL=../../bin/edl
 
 clean:
 	$(RM) -rf out/*

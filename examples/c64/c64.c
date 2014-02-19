@@ -20,7 +20,7 @@
 #include <string.h>
 #include <stdint.h>
 
-#include "gui\debugger.h"
+#include "gui/debugger.h"
 
 #define DEBUG_WINDOWS	0
 #define JIFFY	0 

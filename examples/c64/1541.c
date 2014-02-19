@@ -8,7 +8,7 @@
 #include <string.h>
 #include <stdint.h>
 
-#include "gui\debugger.h"
+#include "gui/debugger.h"
 
 uint16_t DISK_PinGetPIN_AB();
 uint8_t DISK_PinGetPIN_DB();

@@ -13,7 +13,7 @@
 #include <string.h>
 #include <stdint.h>
 
-#include "gui\debugger.h"
+#include "gui/debugger.h"
 
 #define USE_THREADS		0
 
@@ -32,7 +32,7 @@
 #include <pthread.h>
 #endif
 
-#include "jake\ntscDecode.h"
+#include "jake/ntscDecode.h"
 
 int g_instructionStep=0;
 int stopTheClock=0;
