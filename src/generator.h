@@ -51,6 +51,7 @@ public:
 	Instruction**	writeAccessor;
 	Value*		writeInput;
 	Value*		priorValue;
+	Value*		impedance;
 };
 
 class StateVariable
@@ -113,6 +114,7 @@ public:
     Function *debugTraceMissing;
 
     std::string	symbolPrepend;
+    std::string moduleName;
 
     bool errorFlagged;
 

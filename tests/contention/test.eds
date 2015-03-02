@@ -1,0 +1,19 @@
+
+#
+# In principle this is enough to generate a complete program
+#
+#
+
+INSTANCE "rom0.edl" AS R0;
+INSTANCE "rom1.edl" AS R1;
+INSTANCE "reader.edl" AS READER;
+
+# void TEST(uint8_t TEST)
+CONNECT TEST
+{
+	READER PIN__CLK , TEST;			# Feed clock signal from function input to CLK pin on READER
+	R0 PIN_EN , READER PIN_A[1..1];		# Feed Enable signal for rom based on stepped address of READER
+	R1 PIN_EN , READER PIN_A[0..0];
+	PULLUP R0 PIN_D , R1 PIN_D , READER PIN_D;	# Connect Data bus
+}
+

@@ -1,0 +1,21 @@
+
+# 1x8 Bit Fake Rom - returns ~address as data
+
+# PINS 
+
+PIN BIDIRECTIONAL	PIN_D[8];			# Data Bus
+PIN IN			PIN_EN[1];			# Enable chip signal (when EN is low, D goes to high impedance)
+
+HANDLER PIN_EN		ALWAYS
+{
+	IF PIN_EN
+	{
+		DEBUG_TRACE	"55 BUS OUTPUT";
+		PIN_D<-$55;
+	}
+	IF ~PIN_EN
+	{
+		DEBUG_TRACE	"55 BUS ZZ";
+		PIN_D<-HIGH_IMPEDANCE;
+	}
+}

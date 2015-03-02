@@ -1,0 +1,37 @@
+
+
+#
+# BUS_REQ/ACK cycles are not handled yet
+#
+#
+
+# PINS 
+
+PIN OUT			PIN_A[2];			# Adress Bus
+PIN IN			PIN_D[8];			# Data Bus
+PIN IN			PIN__CLK[1];			# clock
+
+# INTERNAL REGISTERS
+DECLARE	INTERNAL ADDR[2];
+
+HANDLER PIN__CLK	TRANSITION(0,1)
+{
+	STATES	ADDRESS,WAIT,LOAD
+	{
+		STATE ADDRESS
+		{
+			PIN_A<-ADDR;
+			ADDR<-ADDR+1;
+		}
+
+		STATE WAIT
+		{
+		}
+
+		STATE LOAD
+		{
+			DEBUG_TRACE PIN_A , PIN_D;
+		}
+	}
+}
+
